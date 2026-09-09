@@ -20,6 +20,8 @@ const getBusinessLayoutData = cache(async (businessId: string) => {
   }
 })
 
+import { MobileSidebar } from '@/components/dashboard/mobile-sidebar'
+
 export default async function BusinessLayout({
   children,
   params,
@@ -36,11 +38,28 @@ export default async function BusinessLayout({
 
   const userInitial = user.email ? user.email.charAt(0).toUpperCase() : 'U'
   const roleLabel = membership.role === 'owner' ? 'Superadmin' : membership.role
+  const businessName = business?.name ?? 'Bisnis'
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
-      {/* Docked Left Sidebar (Full Height - Smart Farm Style) */}
-      <aside className="w-64 md:w-72 h-screen flex flex-col border-r border-border/50 bg-[#0d0f1f] shrink-0 select-none">
+    <div className="flex h-[100dvh] w-full overflow-hidden bg-background flex-col md:flex-row">
+      {/* Mobile Topbar */}
+      <header className="md:hidden flex items-center justify-between border-b border-border/40 bg-[#0d0f1f] p-4 shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-lg bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-sm">
+            <Sparkles className="h-4 w-4" />
+          </div>
+          <div className="font-bold text-white text-sm">VIMERO AI</div>
+        </div>
+        <MobileSidebar 
+          businessId={businessId} 
+          businessName={businessName} 
+          userEmail={user.email || ''} 
+          userRole={membership.role} 
+        />
+      </header>
+
+      {/* Docked Left Sidebar (Desktop Only) */}
+      <aside className="hidden md:flex w-64 md:w-72 h-screen flex-col border-r border-border/50 bg-[#0d0f1f] shrink-0 select-none">
         {/* Top App Branding */}
         <div className="p-5 border-b border-border/40 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -67,7 +86,7 @@ export default async function BusinessLayout({
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Bisnis Aktif</p>
-                <p className="text-xs font-bold text-white truncate">{business?.name ?? 'Bisnis'}</p>
+                <p className="text-xs font-bold text-white truncate">{businessName}</p>
               </div>
             </div>
             <Link href="/dashboard" title="Ganti Ruang Kerja" className="text-muted-foreground hover:text-white p-1 rounded hover:bg-white/5 transition-colors">
@@ -81,7 +100,7 @@ export default async function BusinessLayout({
           <SidebarNav businessId={businessId} />
         </div>
 
-        {/* Bottom User Profile Card (Smart Farm Style) */}
+        {/* Bottom User Profile Card */}
         <div className="p-3 border-t border-border/40 bg-[#0a0c18]">
           <div className="bg-[#141731] border border-border/40 rounded-xl p-3">
             <div className="flex items-center gap-3">
@@ -117,9 +136,9 @@ export default async function BusinessLayout({
       </aside>
 
       {/* Main Content View (Full Width & Scrollable) */}
-      <main className="flex-1 h-screen overflow-y-auto bg-background">
+      <main className="flex-1 overflow-y-auto bg-background md:h-screen">
         <Suspense fallback={
-          <div className="flex h-full w-full items-center justify-center">
+          <div className="flex h-full w-full items-center justify-center min-h-[50vh]">
             <div className="flex items-center gap-3 text-muted-foreground">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               <span className="text-sm font-medium">Memuat data...</span>
