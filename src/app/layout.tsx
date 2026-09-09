@@ -39,7 +39,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${fontHeading.variable} ${fontBody.variable} h-full antialiased dark`}
     >
       <body className={`${fontBody.className} min-h-full flex flex-col`}>
-        <PwaRegistry />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js');
+                });
+              }
+            `,
+          }}
+        />
         {children}
       </body>
     </html>
