@@ -1,0 +1,291 @@
+'use client'
+
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { generateContentBody, evaluateContent, reviseContentWithAI, saveManualEdit } from '@/lib/actions/content'
+import { Loader2, Wand2, Edit3, Save, X, AlertTriangle } from 'lucide-react'
+import { toast } from 'sonner'
+
+// Fungsi untuk menyorot teks bermasalah berdasarkan kritik AI
+function highlightProblematicText(text: string, feedback: string | null, warnings: string[] | null) {
+  if (!text || (!feedback && (!warnings || warnings.length === 0))) return text;
+  
+  // Kumpulkan semua kutipan dari feedback dan warnings
+  const quotes = new Set<string>();
+  const combinedText = [feedback, ...(warnings || [])].filter(Boolean).join(' ');
+  
+  // Ekstrak teks dalam tanda kutip tunggal ('...') atau ganda ("...")
+  const regex = /['"]([^'"]+)['"]/g;
+  let match;
+  while ((match = regex.exec(combinedText)) !== null) {
+    if (match[1].length > 3) { // Hanya sorot kata/frasa yang panjangnya lebih dari 3 karakter
+      quotes.add(match[1]);
+    }
+  }
+
+  if (quotes.size === 0) return text;
+
+  // Urutkan berdasarkan panjang (terpanjang lebih dulu) agar tidak terjadi penyorotan parsial
+  const sortedQuotes = Array.from(quotes).sort((a, b) => b.length - a.length);
+
+  // Buat regex dinamis untuk mencari teks yang sama persis, abaikan besar kecil huruf
+  let highlightedText = text;
+  sortedQuotes.forEach(quote => {
+    // Escape spesial karakter regex
+    const escapedQuote = quote.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const quoteRegex = new RegExp(`(${escapedQuote})`, 'gi');
+    highlightedText = highlightedText.replace(quoteRegex, '<mark class="bg-red-200 dark:bg-red-900/60 text-red-900 dark:text-red-100 px-1 rounded-sm">$1</mark>');
+  });
+
+  return <span dangerouslySetInnerHTML={{ __html: highlightedText }} />;
+}
+
+export function ContentCard({ businessId, content }: { businessId: string, content: any }) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [isRevising, setIsRevising] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [isEvaluating, setIsEvaluating] = useState(false)
+
+  // Form states for editing
+  const [hook, setHook] = useState(content.hook || '')
+  const [body, setBody] = useState(content.body || '')
+  const [cta, setCta] = useState(content.cta || '')
+  const [hashtags, setHashtags] = useState(content.hashtags?.join(' ') || '')
+
+  const handleReviseAI = async () => {
+    setIsRevising(true)
+    try {
+      await reviseContentWithAI(businessId, content.id)
+      toast.success('Naskah berhasil direvisi oleh AI!')
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setIsRevising(false)
+    }
+  }
+
+  const handleSaveEdit = async () => {
+    try {
+      const htArray = hashtags.split(' ').map((h: string) => h.trim()).filter((h: string) => h.length > 0)
+      await saveManualEdit(businessId, content.id, hook, body, cta, htArray)
+      toast.success('Naskah berhasil diperbarui secara manual!')
+      setIsEditing(false)
+    } catch (err: any) {
+      toast.error(err.message)
+    }
+  }
+
+  const needsRevision = content.ai_score !== null && content.ai_score !== undefined
+  const canAutoRevise = needsRevision && content.ai_score >= 85
+
+  return (
+    <div className="border p-5 rounded-xl bg-card shadow-sm space-y-4">
+      <div className="flex justify-between items-start gap-4">
+        <h3 className="font-bold text-lg leading-tight">{content.title}</h3>
+        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+          content.status === 'draft' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' :
+          content.status === 'generated' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' :
+          content.status === 'needs_improvement' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+          content.status === 'approved_recommended' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' :
+          'bg-primary/10 text-primary'
+        }`}>
+          {content.status.toUpperCase().replace('_', ' ')}
+        </span>
+      </div>
+      
+      {content.status === 'draft' && (
+        <form action={async (formData) => {
+          setIsGenerating(true)
+          try {
+            await generateContentBody(businessId, content.id, formData.get('brief') as string)
+          } finally {
+            setIsGenerating(false)
+          }
+        }} className="space-y-3 bg-muted/50 p-4 rounded-lg">
+          <textarea 
+            name="brief" 
+            placeholder="Beri instruksi spesifik untuk AI (misal: 'Buatkan post edukasi yang persuasif, gunakan bahasa gaul')" 
+            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" 
+            required 
+          />
+          <Button type="submit" size="sm" className="w-full gap-2" disabled={isGenerating}>
+            {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+            Generate with AI ✨
+          </Button>
+        </form>
+      )}
+
+      {(content.status === 'generated' || content.status === 'ai_review' || content.status === 'approved_recommended' || content.status === 'needs_improvement') && (
+        <div className={`space-y-3 text-sm bg-muted/30 p-4 rounded-lg ${isEditing ? 'grid lg:grid-cols-2 gap-6' : ''}`}>
+          
+          {/* KOLOM KIRI: Kritik & Teks Asli (Hanya Muncul Saat Edit) */}
+          {isEditing && (
+            <div className="space-y-4 border-r pr-4">
+              <div className="flex items-center gap-2 mb-2 pb-2 border-b">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                <h4 className="font-bold text-base">Referensi Kritik & Naskah Asli</h4>
+              </div>
+              
+              {/* Feedback Box */}
+              {needsRevision && (
+                <div className={`p-3 rounded-lg text-xs border ${content.ai_score >= 85 ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300' : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-950/30 dark:text-red-300'}`}>
+                  <strong>Saran Perbaikan ({content.ai_score}/100):</strong>
+                  <p className="mt-1 opacity-90">{content.ai_feedback}</p>
+                </div>
+              )}
+              
+              {needsRevision && content.ai_claim_warnings && content.ai_claim_warnings.length > 0 && (
+                <div className="bg-amber-100/50 border border-amber-200 p-3 rounded-lg text-xs text-amber-800">
+                  <strong className="block mb-1">⚠️ Peringatan Klaim (Overclaim):</strong>
+                  <ul className="list-disc pl-4 space-y-1">
+                    {content.ai_claim_warnings.map((warn: string, i: number) => <li key={i}>{warn}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {/* Naskah Asli dengan Smart Highlighter */}
+              <div className="space-y-3 bg-background/50 p-3 rounded-md border mt-2">
+                {content.hook && (
+                  <div>
+                    <span className="font-semibold text-primary block mb-1">Hook Asli:</span>
+                    <span className="opacity-80 leading-relaxed block">{highlightProblematicText(content.hook, content.ai_feedback, content.ai_claim_warnings)}</span>
+                  </div>
+                )}
+                {content.body && (
+                  <div>
+                    <span className="font-semibold text-primary block mb-1">Body Asli:</span>
+                    <span className="opacity-80 whitespace-pre-wrap block">{highlightProblematicText(content.body, content.ai_feedback, content.ai_claim_warnings)}</span>
+                  </div>
+                )}
+                {content.cta && (
+                  <div>
+                    <span className="font-semibold text-primary block mb-1">CTA Asli:</span>
+                    <span className="opacity-80 block">{highlightProblematicText(content.cta, content.ai_feedback, content.ai_claim_warnings)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* KOLOM KANAN / FULL: Area Teks & Form Edit */}
+          {isEditing ? (
+            <div className="space-y-4 flex flex-col h-full">
+              <h4 className="font-bold text-base border-b pb-2">Perbaiki Naskah Di Sini</h4>
+              <div className="flex-1 space-y-4">
+                <div>
+                  <label className="font-semibold text-primary block mb-1">Hook:</label>
+                  <textarea className="w-full p-2 border rounded-md min-h-[80px]" value={hook} onChange={e => setHook(e.target.value)} />
+                </div>
+                <div>
+                  <label className="font-semibold text-primary block mb-1">Body:</label>
+                  <textarea className="w-full p-2 border rounded-md min-h-[200px]" value={body} onChange={e => setBody(e.target.value)} />
+                </div>
+                <div>
+                  <label className="font-semibold text-primary block mb-1">Call to Action:</label>
+                  <textarea className="w-full p-2 border rounded-md min-h-[80px]" value={cta} onChange={e => setCta(e.target.value)} />
+                </div>
+                <div>
+                  <label className="font-semibold text-primary block mb-1">Hashtags (pisahkan dengan spasi):</label>
+                  <input type="text" className="w-full p-2 border rounded-md" value={hashtags} onChange={e => setHashtags(e.target.value)} />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end pt-4 mt-auto">
+                <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
+                  <X className="w-4 h-4 mr-2" /> Batal
+                </Button>
+                <Button size="sm" onClick={handleSaveEdit}>
+                  <Save className="w-4 h-4 mr-2" /> Simpan Perubahan
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {content.hook && (
+                <div><span className="font-semibold text-primary block mb-1">Hook:</span> <span className="font-medium text-lg leading-relaxed">{content.hook}</span></div>
+              )}
+              {content.body && (
+                <div className="whitespace-pre-wrap"><span className="font-semibold text-primary block mb-1 mt-2">Body:</span><span className="text-muted-foreground">{content.body}</span></div>
+              )}
+              {content.cta && (
+                <div><span className="font-semibold text-primary block mb-1 mt-2">Call to Action:</span> <span className="font-medium">{content.cta}</span></div>
+              )}
+              {content.hashtags && content.hashtags.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {content.hashtags.map((ht: string, i: number) => (
+                    <span key={i} className="text-xs text-blue-500 font-medium bg-blue-500/10 px-2 py-0.5 rounded-full">
+                      {ht.startsWith('#') ? ht : `#${ht}`}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!isEditing && (content.status === 'generated' || content.status === 'needs_improvement') && (
+        <form action={async () => {
+          setIsEvaluating(true)
+          try {
+            await evaluateContent(businessId, content.id)
+          } finally {
+            setIsEvaluating(false)
+          }
+        }}>
+          <Button type="submit" size="sm" variant="outline" className="w-full gap-2 border-purple-500 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950" disabled={isEvaluating}>
+            {isEvaluating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Evaluasi dengan AI Critic 🧐'}
+          </Button>
+        </form>
+      )}
+
+      {needsRevision && (
+        <div className={`p-4 rounded-lg border ${content.ai_score >= 85 ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30' : 'bg-red-50 border-red-200 dark:bg-red-950/30'}`}>
+          <div className="flex items-center gap-3 mb-2">
+            <div className={`text-2xl font-black ${content.ai_score >= 85 ? 'text-emerald-600' : 'text-red-600'}`}>
+              {content.ai_score}/100
+            </div>
+            <div className="font-semibold">{content.ai_score >= 85 ? '👍 Disetujui (Skor Memuaskan)' : '⚠️ Perlu Perbaikan'}</div>
+          </div>
+          <p className="text-sm mt-2 font-medium">Saran Perbaikan:</p>
+          <p className="text-sm text-muted-foreground">{content.ai_feedback}</p>
+          
+          {content.ai_claim_warnings && content.ai_claim_warnings.length > 0 && (
+            <div className="mt-3 bg-amber-100/50 border border-amber-200 p-2 rounded text-xs text-amber-800">
+              <strong className="block mb-1">⚠️ Peringatan Klaim (Overclaim):</strong>
+              <ul className="list-disc pl-4 space-y-1">
+                {content.ai_claim_warnings.map((warn: string, i: number) => <li key={i}>{warn}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {!isEditing && (
+            <div className="mt-4 pt-4 border-t flex flex-col sm:flex-row gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex-1 border-primary/30 text-primary" 
+                onClick={() => setIsEditing(true)}
+              >
+                <Edit3 className="w-4 h-4 mr-2" />
+                {canAutoRevise ? 'Edit Manual' : 'Wajib Edit Manual'}
+              </Button>
+              
+              {canAutoRevise && (
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700" 
+                  onClick={handleReviseAI}
+                  disabled={isRevising}
+                >
+                  {isRevising ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wand2 className="w-4 h-4 mr-2" />}
+                  Auto-Revisi ✨
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

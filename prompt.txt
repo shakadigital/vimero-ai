@@ -1,0 +1,2055 @@
+# ============================================================
+# VIMERO DIGITAL BUSINESS AI
+# MASTER ENGINEERING PROMPT
+# ============================================================
+
+PROJECT NAME:
+VIMERO
+
+PROJECT TYPE:
+AI-powered Digital Business Command Center
+
+PRIMARY GOAL:
+Build VIMERO as a production-ready, mobile-first PWA that helps a digital business owner:
+
+1. understand their business,
+2. plan marketing strategy,
+3. research trends and opportunities,
+4. generate content ideas,
+5. generate copy,
+6. generate visual concepts,
+7. generate images through pluggable AI providers,
+8. review content quality with AI,
+9. schedule content,
+10. publish content to social media,
+11. analyze performance,
+12. learn from previous results,
+13. continuously improve future content recommendations.
+
+IMPORTANT:
+VIMERO is NOT just an AI chatbot.
+VIMERO is an AI-assisted business operating system for digital marketing.
+
+The architecture must allow the system to evolve from:
+Personal business tool
+→ advanced marketing cockpit
+→ multi-business SaaS
+without requiring a complete rewrite.
+
+============================================================
+# 0. ABSOLUTE ENGINEERING RULES
+============================================================
+
+These rules are mandatory.
+
+RULE 1 — DO NOT IMPROVISE THE ARCHITECTURE.
+
+Do not replace the chosen architecture, framework, database, AI abstraction, or publishing architecture merely because another technology appears easier.
+
+If a change is technically necessary:
+1. explain why,
+2. identify the affected components,
+3. propose the smallest possible change,
+4. wait for explicit approval before changing architecture.
+
+RULE 2 — BUILD IN PHASES.
+
+Never attempt to build the entire application in one uncontrolled pass.
+
+The project is divided into phases.
+
+Only implement the CURRENT PHASE.
+
+After the current phase passes its quality gate:
+- document what was completed,
+- document what remains,
+- stop.
+
+Do NOT automatically start the next phase.
+
+RULE 3 — PRESERVE BACKWARD COMPATIBILITY.
+
+Existing functionality must not be broken by a new phase.
+
+Before modifying an existing component:
+- inspect its current implementation,
+- identify dependencies,
+- preserve public interfaces unless a migration is required.
+
+RULE 4 — NO FAKE FUNCTIONALITY.
+
+Do not create buttons that pretend to work.
+
+Do not create fake API responses and present them as real functionality.
+
+If an external service is not configured:
+- implement the adapter/interface,
+- show a clear configuration state,
+- provide safe mock/demo data only where explicitly marked as demo.
+
+Example:
+
+GOOD:
+"Buffer is not configured. Connect Buffer API."
+
+BAD:
+"Post published successfully"
+when no post was actually published.
+
+RULE 5 — NO HARDCODED SECRETS.
+
+Never put:
+- API keys
+- service-role keys
+- OAuth secrets
+- database passwords
+- access tokens
+
+inside source code.
+
+Use environment variables.
+
+Create/update:
+
+.env.example
+
+Never commit .env.local.
+
+RULE 6 — USE OFFICIAL DOCUMENTATION.
+
+When implementing external integrations:
+- use official documentation,
+- verify current API contracts,
+- do not rely on outdated examples,
+- do not invent endpoints,
+- do not invent SDK methods.
+
+If documentation is ambiguous, stop and report the ambiguity.
+
+RULE 7 — DATABASE FIRST.
+
+Business-critical state must be persisted in PostgreSQL/Supabase.
+
+Do not use local component state as the permanent source of truth for:
+- content
+- campaigns
+- business profile
+- brand information
+- scheduled posts
+- AI usage
+- social accounts
+- analytics
+
+RULE 8 — TYPE EVERYTHING.
+
+Use TypeScript strict mode.
+
+Avoid:
+- any
+- unsafe casts
+- untyped API responses
+- duplicated interfaces
+
+Use shared schemas/types.
+
+RULE 9 — VALIDATE INPUTS.
+
+Use Zod or an equivalent schema validator for:
+- API inputs
+- AI structured outputs
+- forms
+- provider responses
+- publishing payloads
+
+RULE 10 — SERVER-SIDE SECRETS.
+
+AI provider calls, Buffer calls, OAuth exchanges, and secret operations must happen server-side.
+
+Never expose secret credentials to the browser.
+
+RULE 11 — MOBILE FIRST.
+
+Every screen must work on:
+- mobile,
+- tablet,
+- desktop.
+
+Desktop is NOT allowed to be the only design target.
+
+RULE 12 — ACCESSIBILITY.
+
+Use:
+- semantic HTML,
+- keyboard navigation,
+- visible focus states,
+- accessible labels,
+- appropriate contrast,
+- reduced motion considerations.
+
+RULE 13 — PERFORMANCE.
+
+Avoid unnecessary client components.
+
+Prefer:
+- Server Components,
+- server-side data fetching,
+- streaming where appropriate,
+- lazy loading,
+- optimized images,
+- pagination.
+
+RULE 14 — DO NOT OVERENGINEER.
+
+Build only what is necessary for the current phase.
+
+Do not introduce:
+- microservices,
+- Kubernetes,
+- Redis,
+- Kafka,
+- complex event buses,
+- unnecessary queues,
+- unnecessary third-party libraries
+
+unless a future phase explicitly requires them.
+
+RULE 15 — DOCUMENT ARCHITECTURAL DECISIONS.
+
+Create:
+
+/docs/architecture/DECISIONS.md
+
+Record important decisions using:
+
+ADR-001
+Title
+Context
+Decision
+Reason
+Alternatives
+Consequences
+
+RULE 16 — EVERY PHASE MUST HAVE A DEFINITION OF DONE.
+
+A phase is NOT complete because the UI exists.
+
+It is complete only when:
+- implementation exists,
+- types pass,
+- lint passes,
+- build passes,
+- relevant tests pass,
+- no obvious runtime errors exist,
+- UI has been visually checked,
+- documentation is updated.
+
+RULE 17 — DO NOT DELETE FUNCTIONAL CODE WITHOUT JUSTIFICATION.
+
+If code is obsolete:
+- mark it,
+- explain why,
+- remove only after confirming no dependencies.
+
+RULE 18 — KEEP THE AI LAYER PROVIDER-AGNOSTIC.
+
+Never couple business logic directly to Gemini/Groq/Cloudflare.
+
+Business code calls:
+
+AI ROUTER
+
+AI Router calls:
+
+PROVIDER ADAPTER
+
+Provider adapters call:
+
+EXTERNAL AI PROVIDER
+
+============================================================
+# 1. PRODUCT VISION
+============================================================
+
+VIMERO should feel like:
+
+"An AI digital marketing employee + command center."
+
+The user should eventually be able to say:
+
+"I want to increase sales of Product A this month."
+
+VIMERO should eventually be able to:
+
+1. understand the business,
+2. analyze goals,
+3. research opportunities,
+4. propose a campaign,
+5. create content pillars,
+6. generate content ideas,
+7. generate copy,
+8. create visual directions,
+9. generate creative assets,
+10. critique content,
+11. schedule content,
+12. publish,
+13. analyze results,
+14. recommend improvements.
+
+However:
+
+AUTONOMOUS EXECUTION IS NOT PART OF THE FIRST MVP.
+
+Human approval is required before publishing.
+
+============================================================
+# 2. TECHNOLOGY STACK — LOCKED
+============================================================
+
+FRONTEND:
+- Next.js
+- App Router
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- Lucide icons
+- Recharts where charts are needed
+
+BACKEND:
+- Next.js server-side capabilities
+- Supabase
+
+DATABASE:
+- PostgreSQL through Supabase
+- pgvector where semantic memory is required
+
+AUTH:
+- Supabase Auth
+
+STORAGE:
+- Supabase Storage
+
+PWA:
+- Installable PWA
+- Web App Manifest
+- Service Worker
+- Responsive mobile-first UI
+
+AI PRIMARY:
+- Gemini
+
+AI FAST/FALLBACK:
+- Groq
+
+AI UTILITY:
+- Cloudflare Workers AI
+
+SOCIAL PUBLISHING:
+- Buffer API
+
+VALIDATION:
+- Zod
+
+TESTING:
+- Use the project's current compatible testing stack.
+Prefer:
+- Vitest for unit tests
+- Playwright for end-to-end tests
+
+Do not introduce a testing framework if the project already has an established equivalent.
+
+============================================================
+# 3. ARCHITECTURE
+============================================================
+
+Use this architecture:
+
+USER
+ ↓
+NEXT.JS UI
+ ↓
+APPLICATION SERVICE
+ ↓
+DOMAIN SERVICE
+ ↓
+AI ROUTER / PROVIDER ADAPTER
+ ↓
+EXTERNAL PROVIDER
+
+For publishing:
+
+USER
+ ↓
+CONTENT SERVICE
+ ↓
+PUBLISHING SERVICE
+ ↓
+BUFFER ADAPTER
+ ↓
+SOCIAL NETWORK
+
+For persistence:
+
+UI
+ ↓
+SERVER
+ ↓
+SUPABASE
+ ↓
+POSTGRESQL / STORAGE
+
+For analytics:
+
+SOCIAL / BUFFER
+ ↓
+ANALYTICS INGESTION
+ ↓
+POSTGRESQL
+ ↓
+ANALYTICS SERVICE
+ ↓
+AI ANALYST
+ ↓
+RECOMMENDATIONS
+
+============================================================
+# 4. CORE DOMAIN MODULES
+============================================================
+
+Create these conceptual modules:
+
+1. Business
+2. Brand
+3. Products
+4. Goals
+5. Campaigns
+6. Research
+7. Content
+8. Creative
+9. AI Agents
+10. AI Providers
+11. Social Accounts
+12. Publishing
+13. Analytics
+14. AI Memory
+15. Notifications
+16. Audit Logs
+
+Do not implement all modules immediately.
+
+Only implement modules required by the current phase.
+
+============================================================
+# 5. SIDEBAR INFORMATION ARCHITECTURE
+============================================================
+
+Use this information architecture:
+
+VIMERO
+
+COMMAND CENTER
+- Dashboard
+
+BUSINESS BRAIN
+- Business Profile
+- Brand Kit
+- Strategy
+- Goals
+- Campaigns
+
+RESEARCH
+- Trend Research
+- Competitors
+- Audience
+- Keywords
+
+CONTENT
+- Content Ideas
+- Content Studio
+- Copywriter
+- Content Library
+
+CREATIVE
+- Image Studio
+- Brand Assets
+- Templates
+- Video Studio
+
+PLANNING
+- Calendar
+- Campaign Planner
+- Queue
+
+PUBLISHING
+- Social Accounts
+- Scheduled
+- Published
+- Failed
+
+ANALYTICS
+- Overview
+- Content Performance
+- Platform Performance
+- AI Insights
+
+AI SYSTEM
+- AI Agents
+- Models
+- Providers
+- Usage
+- Cost
+
+SETTINGS
+- Account
+- Notifications
+- Security
+
+============================================================
+# 6. UI / DESIGN SYSTEM
+============================================================
+
+DESIGN DIRECTION:
+
+Modern AI command center.
+
+Visual inspiration:
+- premium SaaS dashboard
+- dark-first interface
+- high information density
+- clean typography
+- subtle borders
+- restrained gradients
+- compact cards
+- clear hierarchy
+- professional, not gimmicky
+
+Do NOT copy any existing application's proprietary UI.
+
+Use an original VIMERO design system.
+
+DESKTOP:
+- left sidebar
+- top status/header
+- command-center content
+- responsive content grid
+
+MOBILE:
+- compact top bar
+- bottom navigation for primary actions
+- sheets/drawers for secondary navigation
+- cards become stacked
+- tables become mobile-friendly lists/cards
+
+Avoid:
+- excessive glassmorphism
+- excessive animation
+- giant empty spaces
+- unnecessary gradients
+- oversized rounded components everywhere
+- childish AI visual language
+
+The UI must feel like:
+"professional business software."
+
+============================================================
+# 7. BRAND
+============================================================
+
+Brand name:
+
+VIMERO
+
+Subtitle:
+
+AI Digital Business Command Center
+
+Default tone:
+
+Professional
+Modern
+Intelligent
+Direct
+Helpful
+Strategic
+
+Use Indonesian as the default application language.
+
+Design code and database naming may remain English.
+
+All user-facing copy should be easy to localize later.
+
+============================================================
+# 8. CORE DATABASE MODEL
+============================================================
+
+Design the database around these tables.
+
+CORE:
+
+profiles
+businesses
+business_members
+
+BRAND:
+
+brand_kits
+brand_assets
+
+BUSINESS:
+
+products
+services
+business_goals
+
+MARKETING:
+
+campaigns
+content_pillars
+content_ideas
+
+CONTENT:
+
+contents
+content_versions
+content_platform_variants
+
+CREATIVE:
+
+media_assets
+media_generations
+
+AI:
+
+ai_agents
+ai_providers
+ai_models
+ai_usage
+ai_generation_runs
+
+SOCIAL:
+
+social_accounts
+social_channels
+
+PUBLISHING:
+
+scheduled_posts
+published_posts
+publish_attempts
+
+ANALYTICS:
+
+analytics_daily
+analytics_posts
+analytics_platforms
+
+RESEARCH:
+
+research_items
+competitors
+keywords
+trends
+
+MEMORY:
+
+business_memories
+memory_embeddings
+
+SYSTEM:
+
+notifications
+audit_logs
+
+Every business-scoped table should have:
+
+business_id
+
+where appropriate.
+
+============================================================
+# 9. MULTI-TENANT READY
+============================================================
+
+Even though MVP starts as a personal business tool, design database relationships so the system can later support:
+
+User
+ ↓
+Business
+ ↓
+Team Members
+ ↓
+Business Data
+
+Do not build a separate database per business.
+
+Use:
+
+business_id
+
+as the primary tenant boundary.
+
+Implement Row Level Security.
+
+A user must never be able to access another business's data.
+
+============================================================
+# 10. CONTENT STATE MACHINE
+============================================================
+
+Content lifecycle:
+
+IDEA
+ ↓
+PLANNED
+ ↓
+DRAFT
+ ↓
+GENERATED
+ ↓
+REVIEW
+ ↓
+NEEDS_IMPROVEMENT
+ ↓
+APPROVED
+ ↓
+SCHEDULED
+ ↓
+PUBLISHED
+ ↓
+ANALYZED
+
+Failure paths:
+
+REVIEW
+ ↓
+REJECTED
+ ↓
+REGENERATE
+
+SCHEDULED
+ ↓
+PUBLISH_FAILED
+ ↓
+RETRY
+ ↓
+PUBLISHED
+
+Never bypass APPROVED for automatic publishing in MVP.
+
+============================================================
+# 11. AI AGENT ARCHITECTURE
+============================================================
+
+Each AI agent must have:
+
+id
+name
+description
+purpose
+system_prompt
+input_schema
+output_schema
+preferred_provider
+preferred_model
+fallback_provider
+fallback_model
+quality_threshold
+enabled
+created_at
+updated_at
+
+Initial agents:
+
+1. BUSINESS_STRATEGIST
+2. RESEARCHER
+3. CONTENT_STRATEGIST
+4. COPYWRITER
+5. CREATIVE_DIRECTOR
+6. IMAGE_GENERATOR
+7. VIDEO_DIRECTOR
+8. AI_CRITIC
+9. ANALYST
+
+Do not implement all agents immediately.
+
+============================================================
+# 12. AI ROUTER
+============================================================
+
+Business logic MUST NOT call:
+
+Gemini SDK
+Groq SDK
+Cloudflare SDK
+
+directly.
+
+Instead:
+
+agent
+ ↓
+AI Router
+ ↓
+provider adapter
+
+Example conceptual interface:
+
+generateText()
+generateStructured()
+analyzeImage()
+generateImage()
+transcribeAudio()
+
+Provider adapters:
+
+GeminiProvider
+GroqProvider
+CloudflareProvider
+
+The router must consider:
+
+task
+quality requirement
+latency requirement
+provider availability
+quota
+estimated cost
+fallback availability
+
+Do not hardcode model selection inside individual business modules.
+
+============================================================
+# 13. AI STRUCTURED OUTPUT
+============================================================
+
+Prefer structured JSON output for internal AI workflows.
+
+Do not parse arbitrary prose when structured data is possible.
+
+Example:
+
+{
+  "contentIdeas": [],
+  "reasoningSummary": "",
+  "recommendations": []
+}
+
+Validate AI output using Zod.
+
+If validation fails:
+1. retry with constrained output,
+2. if still invalid, return a safe error,
+3. never silently store malformed data.
+
+============================================================
+# 14. BUSINESS CONTEXT ENGINE
+============================================================
+
+Every AI generation must be aware of relevant business context.
+
+Context can include:
+
+business profile
+brand kit
+products
+services
+target audience
+business goals
+current campaign
+relevant previous content
+relevant analytics
+brand restrictions
+
+Create a reusable BusinessContextService.
+
+Do not duplicate context assembly logic across agents.
+
+============================================================
+# 15. BUSINESS MEMORY
+============================================================
+
+VIMERO must eventually learn from previous content.
+
+Memory examples:
+
+successful hooks
+successful CTAs
+successful topics
+poor-performing topics
+brand preferences
+audience preferences
+campaign history
+content performance
+user corrections
+
+Use PostgreSQL + pgvector when semantic retrieval is required.
+
+Memory must be business-scoped.
+
+Never mix memories across businesses.
+
+============================================================
+# 16. AI CRITIC
+============================================================
+
+The AI Critic evaluates generated content.
+
+Scoring:
+
+Hook
+Brand consistency
+Clarity
+Visual quality
+Platform fit
+CTA
+Conversion potential
+
+Score each:
+
+0–100
+
+Overall score:
+
+0–100
+
+Rules:
+
+< 70:
+REJECT
+
+70–84:
+IMPROVE
+
+85–100:
+APPROVE_RECOMMENDED
+
+Important:
+
+AI approval is a recommendation.
+
+Human approval remains mandatory before publishing during MVP.
+
+============================================================
+# 17. BRAND SAFETY / FACT SAFETY
+============================================================
+
+AI must not invent business claims.
+
+Examples of dangerous claims:
+
+"Best in Indonesia"
+"Trusted by 1 million customers"
+"Guaranteed results"
+"Number one"
+"Officially certified"
+
+unless such facts exist in verified business data.
+
+Create a basic claim-awareness layer.
+
+If an AI-generated statement cannot be supported by available business context:
+
+flag it.
+
+Example:
+
+WARNING:
+"Claim could not be verified against business data."
+
+Allow user to edit or approve manually.
+
+============================================================
+# 18. SOCIAL PUBLISHING ABSTRACTION
+============================================================
+
+Create:
+
+PublishingService
+
+and:
+
+PublishingProvider
+
+BufferAdapter is the first implementation.
+
+The rest of VIMERO must not know Buffer-specific details.
+
+Concept:
+
+PublishingService
+ ↓
+PublishingProvider
+ ↓
+BufferAdapter
+ ↓
+Buffer API
+
+Store provider_post_id.
+
+Store provider errors.
+
+Store publish attempts.
+
+Never report successful publishing unless the provider confirms it.
+
+============================================================
+# 19. SOCIAL ACCOUNT MODEL
+============================================================
+
+Support the concept of:
+
+Social Account
+Social Channel
+Provider
+Connection Status
+
+Example:
+
+Instagram
+Facebook
+TikTok
+YouTube
+LinkedIn
+Threads
+X
+Pinterest
+Bluesky
+
+Do not implement all channels immediately.
+
+The data model should support them.
+
+============================================================
+# 20. SCHEDULER
+============================================================
+
+Do not rely on the browser remaining open.
+
+Scheduled publishing must eventually use server-side scheduling.
+
+Preferred architecture:
+
+Supabase pg_cron
+ ↓
+publish queue
+ ↓
+server/edge function
+ ↓
+PublishingService
+ ↓
+Buffer
+
+Include:
+
+scheduled_at
+status
+attempt_count
+last_error
+published_at
+provider_post_id
+
+Use retry with controlled backoff.
+
+Do not create duplicate posts during retry.
+
+============================================================
+# 21. ANALYTICS
+============================================================
+
+Analytics is a future learning source.
+
+Initial conceptual metrics:
+
+reach
+impressions
+engagement
+likes
+comments
+shares
+saves
+clicks
+views
+watch_time
+conversion
+revenue
+
+Do not assume every platform exposes every metric.
+
+Use nullable fields where appropriate.
+
+Never invent unavailable metrics.
+
+============================================================
+# 22. AI USAGE / COST TRACKING
+============================================================
+
+Track every AI request.
+
+Fields:
+
+business_id
+agent
+provider
+model
+task
+request_id
+input_tokens
+output_tokens
+estimated_cost
+actual_cost
+status
+latency_ms
+created_at
+
+Dashboard should eventually show:
+
+requests
+tokens
+estimated cost
+provider usage
+model usage
+errors
+quota
+
+The application must work even if actual cost is unknown.
+
+Use nullable actual_cost.
+
+============================================================
+# 23. ENVIRONMENT VARIABLES
+============================================================
+
+Create:
+
+.env.example
+
+Expected categories:
+
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+
+SUPABASE_SERVICE_ROLE_KEY
+
+GEMINI_API_KEY
+GROQ_API_KEY
+CLOUDFLARE_ACCOUNT_ID
+CLOUDFLARE_API_TOKEN
+
+BUFFER_API_KEY
+
+Never commit real values.
+
+Never expose secret variables to the client.
+
+============================================================
+# 24. ERROR HANDLING
+============================================================
+
+Every external provider must have:
+
+timeout
+error normalization
+logging
+safe user-facing error
+retry policy where appropriate
+
+Do not expose:
+- raw API keys
+- internal stack traces
+- provider secrets
+- database credentials
+
+to users.
+
+============================================================
+# 25. LOGGING
+============================================================
+
+Use structured logs.
+
+Important events:
+
+AI_REQUEST
+AI_SUCCESS
+AI_FAILURE
+CONTENT_GENERATED
+CONTENT_REVIEWED
+CONTENT_APPROVED
+CONTENT_SCHEDULED
+PUBLISH_STARTED
+PUBLISH_SUCCESS
+PUBLISH_FAILED
+ANALYTICS_SYNC
+AUTH_FAILURE
+
+Include correlation/request IDs where practical.
+
+============================================================
+# 26. AUDIT LOG
+============================================================
+
+Track important user actions:
+
+business_created
+business_updated
+content_created
+content_updated
+content_approved
+content_rejected
+content_scheduled
+content_cancelled
+social_connected
+social_disconnected
+published
+generation_requested
+
+Do not store secrets in audit logs.
+
+============================================================
+# 27. PHASE PLAN
+============================================================
+
+PHASE 0 — FOUNDATION
+
+Deliver:
+
+- repository initialization
+- Next.js App Router
+- TypeScript strict
+- Tailwind
+- shadcn/ui
+- Supabase integration
+- environment structure
+- base layout
+- design tokens
+- lint
+- formatting
+- testing foundation
+- PWA foundation
+- architecture documentation
+- initial database migration structure
+
+DO NOT build AI yet.
+
+QUALITY GATE:
+- app runs
+- Supabase connection works
+- build passes
+- lint passes
+- tests pass
+- PWA manifest exists
+- responsive shell works
+- no secrets committed
+
+STOP AFTER PHASE 0.
+
+============================================================
+
+PHASE 1 — AUTH + BUSINESS FOUNDATION
+
+Deliver:
+
+- authentication
+- profile
+- business creation
+- business selection
+- business profile
+- brand kit
+- product/service records
+- business goals
+- RLS
+
+QUALITY GATE:
+- user can register/login
+- user can create business
+- user can edit business
+- user cannot access another business
+- RLS verified
+- mobile UI verified
+
+STOP.
+
+============================================================
+
+PHASE 2 — COMMAND CENTER
+
+Deliver:
+
+- dashboard
+- business summary
+- goals
+- content status
+- recent activity
+- basic KPI cards
+- empty states
+- loading states
+- error states
+
+No fake analytics.
+
+If analytics are unavailable:
+show "Belum tersedia".
+
+QUALITY GATE:
+- dashboard uses real database data
+- no fake success states
+- responsive
+- visual inspection completed
+
+STOP.
+
+============================================================
+
+PHASE 3 — AI FOUNDATION
+
+Deliver:
+
+- AI provider abstraction
+- AI Router
+- Gemini adapter
+- Groq adapter
+- Cloudflare adapter
+- AI usage logging
+- AI agent registry
+- structured output
+- Zod validation
+- error handling
+
+Implement only:
+
+BUSINESS_STRATEGIST
+
+and:
+
+COPYWRITER
+
+QUALITY GATE:
+- AI calls happen server-side
+- provider abstraction works
+- fallback works
+- usage is logged
+- malformed AI output is rejected safely
+- no provider-specific logic leaks into business services
+
+STOP.
+
+============================================================
+
+PHASE 4 — CONTENT FACTORY
+
+Deliver:
+
+- content ideas
+- content pillars
+- content generation
+- copywriter
+- content versions
+- platform variants
+- content library
+- content state machine
+
+Workflow:
+
+IDEA
+→ DRAFT
+→ GENERATED
+→ REVIEW
+
+QUALITY GATE:
+- generated content persists
+- versions persist
+- user can edit
+- user can regenerate
+- state transitions work
+- no data loss
+
+STOP.
+
+============================================================
+
+PHASE 5 — AI QUALITY CONTROL
+
+Deliver:
+
+- AI Critic
+- content scoring
+- improvement suggestions
+- claim warnings
+- quality threshold
+- review UI
+
+Workflow:
+
+GENERATED
+→ AI REVIEW
+→ APPROVED_RECOMMENDED
+or
+→ NEEDS_IMPROVEMENT
+
+Human must approve.
+
+QUALITY GATE:
+- AI critic produces structured score
+- score is persisted
+- user can see reasons
+- regeneration works
+
+STOP.
+
+============================================================
+
+PHASE 6 — CREATIVE STUDIO
+
+Deliver:
+
+- brand assets
+- image generation abstraction
+- Creative Director
+- image generation provider
+- media library
+- generation history
+- prompt history
+- aspect ratio selection
+
+Do not tightly couple image generation to a single provider.
+
+QUALITY GATE:
+- generated assets stored
+- metadata stored
+- provider errors handled
+- assets linked to content
+
+STOP.
+
+============================================================
+
+PHASE 7 — CONTENT CALENDAR
+
+Deliver:
+
+- monthly calendar
+- weekly view
+- daily view
+- scheduled content
+- drag/drop only if stable and useful
+- filtering by campaign/platform/status
+- content queue
+
+QUALITY GATE:
+- calendar reflects database state
+- timezone is handled correctly
+- mobile view is usable
+
+STOP.
+
+============================================================
+
+PHASE 8 — SOCIAL PUBLISHING
+
+Deliver:
+
+- social account management
+- Buffer provider adapter
+- schedule post
+- publish post
+- cancel post
+- retry failed publish
+- publish status
+- provider IDs
+- provider errors
+
+Human approval remains mandatory.
+
+QUALITY GATE:
+- no false publish success
+- provider response is persisted
+- duplicate prevention exists
+- retry works
+- disconnected account handled safely
+
+STOP.
+
+============================================================
+
+PHASE 9 — ANALYTICS
+
+Deliver:
+
+- analytics ingestion abstraction
+- daily metrics
+- post metrics
+- platform metrics
+- performance dashboard
+
+Do not fake unavailable metrics.
+
+QUALITY GATE:
+- metrics source is identifiable
+- timestamps are correct
+- platform differences are handled
+
+STOP.
+
+============================================================
+
+PHASE 10 — AI LEARNING LOOP
+
+Deliver:
+
+- performance analysis
+- AI Analyst
+- business memory
+- semantic retrieval
+- recommendations
+- successful content patterns
+- poor-performing patterns
+
+Workflow:
+
+PUBLISHED
+→ ANALYTICS
+→ AI ANALYST
+→ MEMORY
+→ FUTURE RECOMMENDATIONS
+
+QUALITY GATE:
+- recommendations are based on stored data
+- memories are business-scoped
+- no cross-business contamination
+
+STOP.
+
+============================================================
+
+PHASE 11 — AUTONOMOUS CAMPAIGNS
+
+ONLY AFTER USER APPROVAL.
+
+Deliver:
+
+campaign generator
+content batch generation
+creative batch generation
+quality review
+calendar proposal
+approval workflow
+
+Important:
+
+The AI may prepare an entire campaign.
+
+The AI must NOT publish without explicit approval unless the user later enables an explicit autonomous mode.
+
+STOP.
+
+============================================================
+
+# 28. CURRENT PHASE EXECUTION PROTOCOL
+============================================================
+
+When this Master Prompt is first executed:
+
+DO NOT start building everything.
+
+First:
+
+1. inspect repository,
+2. inspect existing files,
+3. inspect package.json,
+4. inspect git status,
+5. determine whether this is an empty or existing project,
+6. create an architecture plan,
+7. create:
+
+/docs/PROJECT_STATUS.md
+
+8. create/update:
+
+/docs/architecture/DECISIONS.md
+
+9. create workspace engineering rules if needed.
+
+Then implement:
+
+PHASE 0 ONLY.
+
+When PHASE 0 is complete:
+- run tests,
+- run lint,
+- run build,
+- inspect the UI in browser,
+- verify mobile layout,
+- fix issues,
+- document results.
+
+Then STOP.
+
+Do not implement Phase 1.
+
+============================================================
+# 29. PROJECT STATUS FILE
+============================================================
+
+Maintain:
+
+/docs/PROJECT_STATUS.md
+
+Format:
+
+# VIMERO Project Status
+
+## Current Phase
+
+PHASE 0
+
+## Completed
+
+- [ ]
+
+## In Progress
+
+- [ ]
+
+## Blocked
+
+- [ ]
+
+## Decisions
+
+- 
+
+## Known Issues
+
+- 
+
+## Next Phase
+
+PHASE 1
+
+## Last Verification
+
+Date:
+Build:
+Lint:
+Tests:
+Browser:
+Mobile:
+
+============================================================
+# 30. ARCHITECTURE DOCUMENTATION
+============================================================
+
+Maintain:
+
+/docs/architecture/
+
+ARCHITECTURE.md
+DATABASE.md
+AI_ARCHITECTURE.md
+PUBLISHING_ARCHITECTURE.md
+SECURITY.md
+DECISIONS.md
+
+Do not write speculative documentation as if functionality already exists.
+
+Use:
+
+PLANNED
+IMPLEMENTED
+DEFERRED
+
+labels where useful.
+
+============================================================
+# 31. TESTING STRATEGY
+============================================================
+
+Unit tests:
+
+- AI Router selection
+- state transitions
+- validation
+- business context
+- publishing status
+- cost calculations
+
+Integration tests:
+
+- Supabase data access
+- AI provider adapters
+- Buffer adapter
+
+E2E:
+
+- login
+- create business
+- create content
+- approve content
+- schedule content
+
+Do not create brittle tests based on implementation details.
+
+Prefer testing user behavior and domain behavior.
+
+============================================================
+# 32. BROWSER VERIFICATION
+============================================================
+
+When a phase includes UI:
+
+Use browser verification.
+
+Check:
+
+Desktop:
+1440px width
+
+Tablet:
+768px width
+
+Mobile:
+390px width
+
+Verify:
+
+- no horizontal overflow
+- navigation works
+- buttons work
+- forms work
+- loading states
+- error states
+- empty states
+- typography
+- spacing
+- responsive layout
+
+Fix visual issues before declaring the phase complete.
+
+============================================================
+# 33. UI QUALITY RULE
+============================================================
+
+Do not accept:
+
+"technically works"
+
+as the definition of done.
+
+The application must also look intentional.
+
+Every screen must have:
+
+Loading state
+Empty state
+Error state
+Success state where relevant
+
+No unfinished-looking placeholder UI.
+
+Avoid:
+
+"TODO"
+"Coming soon"
+
+unless explicitly part of the roadmap.
+
+============================================================
+# 34. DATA ACCESS RULE
+============================================================
+
+Use server-side data access for protected business data.
+
+Do not blindly expose Supabase tables to the client.
+
+RLS is mandatory.
+
+Validate ownership through business membership.
+
+============================================================
+# 35. MIGRATION RULE
+============================================================
+
+Every database change must be represented by a migration.
+
+Never manually modify production schema without migration.
+
+Migration naming:
+
+YYYYMMDDHHMM_description.sql
+
+Do not rewrite historical migrations after they have been applied.
+
+============================================================
+# 36. PACKAGE MANAGEMENT
+============================================================
+
+Before installing a package:
+
+1. verify whether the functionality already exists,
+2. verify compatibility with the current Next.js version,
+3. prefer mature maintained packages,
+4. avoid unnecessary dependencies.
+
+After installing:
+
+- update package lock,
+- run lint,
+- run tests,
+- run build.
+
+============================================================
+# 37. VERSIONING
+============================================================
+
+Use Git.
+
+Before significant phase completion:
+
+create a logical commit.
+
+Suggested commits:
+
+feat: initialize vimero foundation
+feat: add business foundation
+feat: add command center
+feat: add ai router
+feat: add content factory
+feat: add ai quality control
+feat: add creative studio
+feat: add calendar
+feat: add social publishing
+feat: add analytics
+feat: add ai learning
+
+Do not create meaningless commits.
+
+============================================================
+# 38. SECURITY RULES
+============================================================
+
+Never trust:
+
+- client business_id
+- client user_id
+- client role
+- client permissions
+- AI-generated claims
+- external provider status
+
+Always validate server-side.
+
+Do not allow users to modify another business.
+
+Do not store OAuth tokens in plaintext if the integration requires persistent credentials.
+
+Use secure server-side storage.
+
+============================================================
+# 39. OBSERVABILITY
+============================================================
+
+Every external AI/social request should have:
+
+request ID
+provider
+model/provider
+start time
+end time
+status
+
+Do not log sensitive payloads unnecessarily.
+
+============================================================
+# 40. FUTURE EXTENSIBILITY
+============================================================
+
+Design interfaces for future providers:
+
+AI:
+Gemini
+Groq
+Cloudflare
+future providers
+
+Image:
+future image providers
+
+Video:
+future video providers
+
+Social:
+Buffer
+native platform adapters later
+
+Do NOT implement future providers now.
+
+Only create clean interfaces.
+
+============================================================
+# 41. WHAT NOT TO BUILD YET
+============================================================
+
+Unless the current phase explicitly requires them, DO NOT build:
+
+- billing
+- subscriptions
+- team billing
+- marketplace
+- autonomous publishing
+- complex workflow engine
+- microservices
+- mobile native app
+- advanced video generation
+- custom social network APIs
+- complicated vector infrastructure
+- real-time collaboration
+- enterprise RBAC
+
+These are future concerns.
+
+============================================================
+# 42. DECISION HIERARCHY
+============================================================
+
+When making an implementation decision, prioritize:
+
+1. Existing VIMERO architecture
+2. Security
+3. Data integrity
+4. Maintainability
+5. Simplicity
+6. Performance
+7. Developer convenience
+
+Do not choose convenience over architecture.
+
+============================================================
+# 43. WHEN YOU ARE UNCERTAIN
+============================================================
+
+Do not silently guess.
+
+Classify uncertainty:
+
+A. implementation detail
+→ choose the simplest compatible solution.
+
+B. external API behavior
+→ inspect official documentation.
+
+C. architecture change
+→ stop and ask for approval.
+
+D. product decision
+→ choose the MVP-safe option and document it.
+
+============================================================
+# 44. FINAL AGENT BEHAVIOR
+============================================================
+
+Act as:
+
+- Principal Software Architect
+- Senior Next.js Engineer
+- Senior Supabase Engineer
+- AI Systems Engineer
+- Product Designer
+- QA Engineer
+
+But do NOT act as an uncontrolled autonomous product manager.
+
+The user remains the final authority.
+
+Do not add features merely because they seem interesting.
+
+============================================================
+# 45. FIRST ACTION
+============================================================
+
+START NOW.
+
+Do exactly this:
+
+STEP 1
+Inspect the repository.
+
+STEP 2
+Determine whether this is:
+- empty project,
+- existing project,
+- partially built project.
+
+STEP 3
+Do NOT overwrite existing work.
+
+STEP 4
+Create:
+
+/docs/PROJECT_STATUS.md
+
+/docs/architecture/ARCHITECTURE.md
+
+/docs/architecture/DATABASE.md
+
+/docs/architecture/AI_ARCHITECTURE.md
+
+/docs/architecture/PUBLISHING_ARCHITECTURE.md
+
+/docs/architecture/SECURITY.md
+
+/docs/architecture/DECISIONS.md
+
+STEP 5
+Create the appropriate workspace rule structure if it does not already exist.
+
+STEP 6
+Implement PHASE 0 ONLY.
+
+STEP 7
+Run:
+
+typecheck
+lint
+unit tests
+build
+
+using the project's actual package scripts.
+
+STEP 8
+Launch the application.
+
+STEP 9
+Use browser verification.
+
+STEP 10
+Check:
+desktop
+tablet
+mobile
+
+STEP 11
+Fix all blocking issues.
+
+STEP 12
+Update PROJECT_STATUS.md.
+
+STEP 13
+Report:
+
+- what was created
+- files changed
+- packages added
+- database migrations
+- tests performed
+- browser verification
+- known issues
+- next phase
+
+STEP 14
+
+STOP.
+
+DO NOT IMPLEMENT PHASE 1.
+
+============================================================
+END OF MASTER ENGINEERING PROMPT
+============================================================

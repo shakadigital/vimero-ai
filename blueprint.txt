@@ -1,0 +1,1620 @@
+Siap. Saya buat blueprint-nya dengan prinsip **MVP dulu, biaya hampir nol, tetapi fondasinya tidak dibuang ketika nanti naik kelas menjadi aplikasi bisnis serius**.
+
+Saya juga cek ulang layanan yang akan menjadi fondasi. Saat ini Supabase Free memberi PostgreSQL, Auth, Storage dan fitur backend dasar; Buffer API tersedia di Free dengan batas 3.000 request/bulan; Gemini 3.1 Flash-Lite mempunyai Free Tier; Groq menyediakan rate limit Free Plan; dan Cloudflare Workers AI memberi 10.000 Neurons/hari pada Free Plan. ([Supabase][1])
+
+# BLUEPRINT — VIMERO DIGITAL BUSINESS AI
+
+Saya sarankan nama kerja:
+
+> **VIMERO — AI Digital Business Command Center**
+
+Bukan aplikasi "buat posting", tetapi **pusat kendali seluruh mesin konten dan pemasaran digital**.
+
+---
+
+# 1. Visi sistem
+
+Tujuan akhirnya:
+
+> **Satu tempat untuk merencanakan → meriset → membuat → mendesain → mengevaluasi → menjadwalkan → mempublikasikan → menganalisis → memperbaiki strategi.**
+
+Dengan manusia tetap sebagai **pengambil keputusan akhir**.
+
+```text
+                    VIMERO
+                       │
+                BUSINESS BRAIN
+                       │
+       ┌───────────────┼────────────────┐
+       │               │                │
+    STRATEGY         CONTENT         ANALYTICS
+       │               │                │
+       ▼               ▼                ▼
+    Research       Creation          Performance
+       │               │                │
+       └───────────────┼────────────────┘
+                       ▼
+                 AI QUALITY GATE
+                       │
+                  HUMAN APPROVAL
+                       │
+                       ▼
+                 SCHEDULER
+                       │
+                       ▼
+                SOCIAL MEDIA
+                       │
+                       ▼
+                  ANALYTICS
+                       │
+                       └──────► AI LEARNING
+```
+
+---
+
+# 2. Prinsip arsitektur
+
+Saya ingin empat prinsip ini dikunci sejak awal.
+
+### ① AI bukan satu model
+
+Jangan:
+
+```text
+VIMERO → Gemini → semua pekerjaan
+```
+
+Tetapi:
+
+```text
+                 AI ROUTER
+                    │
+       ┌────────────┼─────────────┐
+       ▼            ▼             ▼
+    Gemini        Groq       Cloudflare
+       │            │             │
+    Strategy      Fast         Utility
+```
+
+Jadi provider bisa diganti kapan saja.
+
+---
+
+### ② Semua AI harus punya ROLE
+
+Bukan sekadar "chat dengan AI".
+
+Contoh:
+
+```text
+AI_STRATEGIST
+AI_RESEARCHER
+AI_COPYWRITER
+AI_CREATIVE_DIRECTOR
+AI_IMAGE_GENERATOR
+AI_VIDEO_DIRECTOR
+AI_SEO_SPECIALIST
+AI_ANALYST
+AI_CRITIC
+AI_PUBLISHER
+```
+
+Setiap agent mempunyai:
+
+* tujuan
+* system prompt
+* input schema
+* output schema
+* model
+* fallback model
+* batas biaya
+* quality threshold
+
+---
+
+### ③ Semua hasil AI harus tersimpan
+
+Jangan menghasilkan sesuatu lalu hilang di chat.
+
+Misalnya caption:
+
+```text
+generation
+    ↓
+content
+    ↓
+version 1
+    ↓
+version 2
+    ↓
+approved
+    ↓
+published
+```
+
+Sehingga nanti AI dapat belajar dari **riwayat konten**, bukan hanya percakapan terakhir.
+
+---
+
+### ④ Human approval wajib
+
+Untuk fase awal:
+
+```text
+AI → Generate
+      ↓
+AI → Quality Check
+      ↓
+USER → Approve
+      ↓
+Publish
+```
+
+Jangan langsung:
+
+```text
+AI → bikin → upload
+```
+
+Minimal sampai sistem sudah benar-benar dipercaya.
+
+---
+
+# 3. Stack final
+
+## Frontend
+
+**Next.js + TypeScript**
+
+Next.js sekarang memiliki panduan resmi untuk PWA, termasuk manifest, push notification, service worker dan instalasi ke home screen. ([Next.js][2])
+
+```text
+Next.js
+TypeScript
+Tailwind CSS
+shadcn/ui
+Lucide
+Recharts
+React Hook Form
+Zod
+```
+
+---
+
+# 4. Backend
+
+### Supabase
+
+```text
+Supabase
+├── PostgreSQL
+├── Auth
+├── Storage
+├── Realtime
+├── Edge Functions
+├── pg_cron
+└── pgvector
+```
+
+Supabase memang menyediakan PostgreSQL penuh, Auth, Storage, Realtime, Edge Functions, pgvector dan pg_cron dalam ekosistemnya. ([Supabase][3])
+
+Untuk MVP, ini sangat ideal.
+
+---
+
+# 5. Arsitektur keseluruhan
+
+```text
+┌──────────────────────────────────────────┐
+│             VIMERO PWA                   │
+│              Next.js                     │
+└───────────────────┬──────────────────────┘
+                    │
+                    ▼
+             APPLICATION API
+                    │
+        ┌───────────┼────────────┐
+        ▼           ▼            ▼
+   Business      Content      Publishing
+    Engine       Engine         Engine
+        │           │            │
+        └───────────┼────────────┘
+                    ▼
+                AI ROUTER
+                    │
+       ┌────────────┼──────────────┐
+       ▼            ▼              ▼
+    Gemini         Groq        Cloudflare
+       │            │              │
+       └────────────┼──────────────┘
+                    ▼
+              QUALITY GATE
+                    │
+                    ▼
+               PostgreSQL
+                    │
+       ┌────────────┼──────────────┐
+       ▼            ▼              ▼
+    Storage      Analytics       Queue
+                    │
+                    ▼
+                 Buffer
+                    │
+       ┌────────────┼───────────────┐
+       ▼            ▼               ▼
+   Instagram     Facebook         TikTok
+       │
+       └── YouTube / LinkedIn / X / Threads
+```
+
+Buffer saat ini menyediakan API GraphQL untuk membuat, mengambil, menghapus, dan menjadwalkan post serta mengelola channel; API tersedia di Free Plan. ([Buffer][4])
+
+---
+
+# 6. Modul aplikasi
+
+Saya akan membuat sidebar seperti ini.
+
+```text
+VIMERO
+────────────────────
+
+🏠 Command Center
+
+🧠 BUSINESS BRAIN
+   ├─ Business Profile
+   ├─ Strategy
+   ├─ Goals
+   └─ Campaign
+
+🔎 RESEARCH
+   ├─ Trend Research
+   ├─ Competitor
+   ├─ Audience
+   └─ Keyword
+
+✍️ CONTENT
+   ├─ Content Ideas
+   ├─ Content Studio
+   ├─ Copywriter
+   └─ Content Library
+
+🎨 CREATIVE
+   ├─ Image Studio
+   ├─ Brand Kit
+   ├─ Templates
+   └─ Video Studio
+
+📅 PLANNING
+   ├─ Calendar
+   ├─ Campaign
+   └─ Queue
+
+📤 PUBLISHING
+   ├─ Social Accounts
+   ├─ Scheduled
+   ├─ Published
+   └─ Failed
+
+📊 ANALYTICS
+   ├─ Overview
+   ├─ Content Performance
+   ├─ Platform
+   └─ AI Insights
+
+🤖 AI AGENTS
+   ├─ Agent Manager
+   ├─ Model Manager
+   └─ Usage / Cost
+
+⚙️ SETTINGS
+```
+
+---
+
+# 7. Command Center
+
+Ini halaman yang akan paling sering dilihat.
+
+Contoh:
+
+```text
+┌─────────────────────────────────────────────────────┐
+│ GOOD AFTERNOON, ADANG                               │
+│ Here's what your digital business needs today.      │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│ REVENUE       CONTENT       ENGAGEMENT   SCHEDULED │
+│ Rp 7,1 jt     18 posts      8,4%         12        │
+│                                                     │
+├─────────────────────────────────────────────────────┤
+│ AI RECOMMENDATION                                   │
+│                                                     │
+│ 🔥 Konten video edukasi sedang perform bagus.      │
+│                                                     │
+│ Recommendation:                                    │
+│ Buat 3 Reels tentang "..."                         │
+│                                                     │
+│ [Buat Sekarang]                                     │
+├──────────────────────────┬──────────────────────────┤
+│ TODAY                    │ CONTENT QUEUE            │
+│                          │                          │
+│ 09:00 ✓                  │ 🎬 Reel                  │
+│ 13:00 ●                  │ 🖼 Carousel              │
+│ 19:00 ○                  │ ✍️ Text                   │
+└──────────────────────────┴──────────────────────────┘
+```
+
+---
+
+# 8. BUSINESS PROFILE
+
+Ini **otak permanen** aplikasi.
+
+Data:
+
+```text
+Business
+├── Name
+├── Description
+├── Industry
+├── Products
+├── Services
+├── Target Audience
+├── Location
+├── Price Position
+├── Brand Voice
+├── Brand Values
+├── USP
+├── Competitors
+├── Goals
+└── Restrictions
+```
+
+---
+
+# 9. BRAND MEMORY
+
+Tambahkan:
+
+```text
+Brand Kit
+├── Logo
+├── Primary Color
+├── Secondary Color
+├── Font
+├── Image Style
+├── Photography Style
+├── Tone
+├── CTA Style
+├── Forbidden Words
+└── Visual Rules
+```
+
+AI akan menggunakan ini setiap kali membuat konten.
+
+---
+
+# 10. AI AGENTS
+
+## Agent 01 — Business Strategist
+
+Input:
+
+```json
+{
+  "business": "...",
+  "goal": "...",
+  "target": "...",
+  "period": "30 days"
+}
+```
+
+Output:
+
+```json
+{
+  "strategy": [],
+  "content_pillars": [],
+  "campaigns": [],
+  "recommendations": []
+}
+```
+
+---
+
+# 11. Agent 02 — Researcher
+
+Tugas:
+
+* trend
+* competitor
+* audience questions
+* content gaps
+* keyword
+* seasonal opportunities
+
+Output:
+
+```text
+TREND
+SCORE
+WHY IT MATTERS
+TARGET PLATFORM
+CONTENT ANGLE
+URGENCY
+```
+
+**Catatan penting:** Gemini 3.1 Flash-Lite Free Tier saat ini tidak menyediakan Google Search grounding gratis; jadi jangan menganggap "research web" otomatis gratis lewat model tersebut. ([Google AI for Developers][5])
+
+Untuk Researcher, kita buat **Web Research Provider** terpisah.
+
+---
+
+# 12. Agent 03 — Content Strategist
+
+Dia menerima:
+
+```text
+Business
++
+Goal
++
+Research
++
+Analytics
+```
+
+dan menghasilkan:
+
+```text
+30 Content Ideas
+```
+
+Contoh:
+
+```text
+01 Educational
+02 Educational
+03 Product
+04 Story
+05 Trend
+06 Problem/Solution
+...
+```
+
+---
+
+# 13. Agent 04 — Copywriter
+
+Satu content idea:
+
+```text
+"Kenapa pelanggan sering salah memilih X?"
+```
+
+menghasilkan:
+
+```text
+Hook
+Body
+CTA
+Caption
+Hashtag
+Short Version
+Long Version
+TikTok Version
+Instagram Version
+Facebook Version
+```
+
+---
+
+# 14. Agent 05 — Creative Director
+
+Ini jangan langsung mengirim prompt mentah ke image AI.
+
+Dia terlebih dahulu membuat:
+
+```json
+{
+  "concept": "...",
+  "composition": "...",
+  "subject": "...",
+  "camera": "...",
+  "lighting": "...",
+  "color": "...",
+  "typography": "...",
+  "negative_constraints": [],
+  "aspect_ratio": "4:5"
+}
+```
+
+Kemudian baru:
+
+```text
+Creative Director
+       ↓
+Image Prompt
+       ↓
+Image Generator
+```
+
+---
+
+# 15. Agent 06 — Image Generator
+
+Provider:
+
+```text
+Primary
+Gemini Image
+
+Fallback
+Cloudflare / other provider
+```
+
+Tetapi jangan mengikat database dengan nama model tertentu.
+
+Simpan:
+
+```text
+provider
+model
+generation_id
+prompt
+parameters
+cost
+status
+```
+
+Jadi model bisa diganti.
+
+---
+
+# 16. Agent 07 — Video Director
+
+Untuk fase pertama **jangan langsung membangun video generator sendiri**.
+
+Agent ini hanya menghasilkan:
+
+```text
+VIDEO CONCEPT
+SCENE
+TIMELINE
+SHOT
+VOICEOVER
+TEXT OVERLAY
+MUSIC DIRECTION
+CTA
+```
+
+Kemudian video engine dapat ditambahkan kemudian.
+
+Ini menghemat biaya dan kompleksitas.
+
+---
+
+# 17. Agent 08 — AI Critic
+
+Ini salah satu komponen terpenting.
+
+```text
+CONTENT
+   ↓
+CRITIC
+   ↓
+Score
+```
+
+Rubric:
+
+```text
+Hook                 0–100
+Brand consistency    0–100
+Clarity              0–100
+Visual quality       0–100
+Platform fit         0–100
+CTA                  0–100
+Conversion potential 0–100
+```
+
+Kemudian:
+
+```text
+< 70
+REJECT
+
+70–84
+IMPROVE
+
+85+
+APPROVE
+```
+
+---
+
+# 18. AI Router
+
+Ini jantung teknisnya.
+
+```text
+AI Router
+
+task
+↓
+complexity
+↓
+quality_required
+↓
+provider availability
+↓
+quota
+↓
+estimated cost
+↓
+select model
+```
+
+Contoh:
+
+| Task           | Primary           | Fallback      |
+| -------------- | ----------------- | ------------- |
+| Ide konten     | Gemini Flash-Lite | Groq          |
+| Caption        | Gemini Flash-Lite | Groq          |
+| Strategi       | Gemini            | Groq          |
+| Classification | Cloudflare        | Groq          |
+| Vision         | Gemini            | Cloudflare    |
+| Image          | Gemini Image      | provider lain |
+| Speech         | Groq Whisper      | provider lain |
+| Research       | Web provider      | manual        |
+
+Groq Free Plan saat ini menyediakan model seperti GPT-OSS, Qwen dan Whisper dengan rate limits berbeda-beda, sehingga cocok dijadikan jalur fallback/fast lane. ([GroqCloud][6])
+
+---
+
+# 19. Cost Controller
+
+Ini **wajib**.
+
+Database menyimpan setiap pemakaian AI:
+
+```text
+ai_usage
+────────────────────────
+user_id
+agent
+provider
+model
+request_type
+input_tokens
+output_tokens
+estimated_cost
+actual_cost
+created_at
+```
+
+Dashboard:
+
+```text
+AI USAGE — SEPTEMBER
+
+Gemini       4,821 requests
+Groq           912 requests
+Cloudflare     223 requests
+
+Estimated cost
+$0.00
+
+Free quota
+████████░░ 82%
+```
+
+Kalau nanti mulai bayar:
+
+```text
+Budget bulan ini
+$10
+
+Used
+$6.42
+
+Remaining
+$3.58
+```
+
+---
+
+# 20. Database
+
+Saya sarankan struktur inti:
+
+```text
+profiles
+businesses
+business_members
+
+brand_kits
+brand_assets
+
+products
+services
+
+business_goals
+campaigns
+
+content_pillars
+content_ideas
+contents
+content_versions
+
+media_assets
+media_generations
+
+ai_agents
+ai_models
+ai_providers
+ai_usage
+
+social_accounts
+social_channels
+
+scheduled_posts
+published_posts
+publish_attempts
+
+analytics_daily
+analytics_posts
+
+research_items
+competitors
+keywords
+trends
+
+notifications
+audit_logs
+```
+
+---
+
+# 21. Relasi penting
+
+```text
+business
+   │
+   ├── brand_kit
+   │
+   ├── products
+   │
+   ├── goals
+   │
+   ├── campaigns
+   │      │
+   │      └── content
+   │
+   ├── social_accounts
+   │
+   └── analytics
+```
+
+---
+
+# 22. Content lifecycle
+
+Setiap konten mempunyai status.
+
+```text
+IDEA
+ ↓
+PLANNED
+ ↓
+DRAFT
+ ↓
+GENERATED
+ ↓
+REVIEW
+ ↓
+APPROVED
+ ↓
+SCHEDULED
+ ↓
+PUBLISHED
+ ↓
+ANALYZED
+ ↓
+LEARNED
+```
+
+Kalau gagal:
+
+```text
+REVIEW
+ ↓
+NEEDS_IMPROVEMENT
+ ↓
+REGENERATE
+```
+
+---
+
+# 23. Social publishing
+
+Buffer menjadi adapter:
+
+```text
+VIMERO
+   │
+   ▼
+Publishing Service
+   │
+   ▼
+Buffer Adapter
+   │
+   ├── Instagram
+   ├── Facebook
+   ├── TikTok
+   ├── YouTube
+   ├── LinkedIn
+   ├── Threads
+   ├── X
+   └── Bluesky
+```
+
+Buffer API mendukung OAuth untuk aplikasi multi-user, sehingga desain ini nantinya tetap bisa berkembang dari aplikasi pribadi menjadi SaaS. ([Buffer][7])
+
+Untuk MVP pribadi, cukup:
+
+```text
+1 user
+1 Buffer account
+1 API key
+```
+
+---
+
+# 24. Scheduler
+
+Jangan mengandalkan browser user terbuka.
+
+Gunakan:
+
+```text
+Supabase pg_cron
+       ↓
+publish queue
+       ↓
+Edge Function
+       ↓
+Buffer API
+```
+
+Supabase saat ini mendukung pg_cron untuk recurring jobs dan dapat memanggil Edge Functions melalui pg_net. ([Supabase][8])
+
+---
+
+# 25. Publish queue
+
+Contoh:
+
+```text
+publish_queue
+
+id
+content_id
+channel_id
+scheduled_at
+status
+attempt_count
+last_error
+provider
+provider_post_id
+published_at
+```
+
+Status:
+
+```text
+QUEUED
+PROCESSING
+PUBLISHED
+FAILED
+RETRY
+CANCELLED
+```
+
+---
+
+# 26. Retry system
+
+Kalau Buffer gagal:
+
+```text
+Attempt 1
+   ↓
+wait
+   ↓
+Attempt 2
+   ↓
+wait
+   ↓
+Attempt 3
+   ↓
+FAILED
+```
+
+Jangan langsung menganggap gagal setelah satu request.
+
+---
+
+# 27. Security
+
+API key AI **tidak boleh berada di browser**.
+
+```text
+Browser
+   │
+   ▼
+Next.js / Edge Function
+   │
+   ▼
+AI Provider
+```
+
+Bukan:
+
+```text
+Browser
+   ↓
+Gemini API
+```
+
+Supabase juga membedakan publishable key yang boleh berada di aplikasi dengan secret key yang hanya boleh digunakan backend/Edge Functions. ([Supabase][9])
+
+---
+
+# 28. RLS
+
+Semua tabel bisnis harus:
+
+```text
+business_id
+```
+
+kemudian Row Level Security:
+
+```text
+USER
+ ↓
+business_members
+ ↓
+business_id
+ ↓
+DATA
+```
+
+Jadi kalau nanti Anda menjadikan VIMERO SaaS:
+
+```text
+User A
+ ↓
+Business A
+
+User B
+ ↓
+Business B
+```
+
+data tidak tercampur.
+
+---
+
+# 29. Storage
+
+Supabase Storage:
+
+```text
+/storage
+
+business/
+ └── {business_id}/
+
+     brand/
+     products/
+     generated/
+     videos/
+     exports/
+     thumbnails/
+```
+
+Supabase Storage bisa digunakan langsung dari Edge Functions dan memiliki integrasi dengan CDN. ([Supabase][10])
+
+---
+
+# 30. API Endpoint
+
+Saya akan membuat service layer seperti:
+
+```text
+/api/business
+/api/strategy
+/api/research
+/api/content
+/api/content/generate
+/api/content/review
+/api/image/generate
+/api/video/storyboard
+/api/ai/chat
+/api/ai/usage
+/api/calendar
+/api/social/accounts
+/api/social/publish
+/api/social/schedule
+/api/analytics
+```
+
+Tetapi jangan membuat setiap endpoint langsung memanggil provider.
+
+Semua AI:
+
+```text
+API
+ ↓
+Agent Service
+ ↓
+AI Router
+ ↓
+Provider Adapter
+```
+
+---
+
+# 31. Provider Adapter
+
+Struktur kode:
+
+```text
+/lib/ai
+
+router.ts
+
+/providers
+   gemini.ts
+   groq.ts
+   cloudflare.ts
+
+/agents
+   strategist.ts
+   researcher.ts
+   copywriter.ts
+   creative-director.ts
+   critic.ts
+   analyst.ts
+```
+
+Sehingga:
+
+```typescript
+await ai.generate({
+  task: "copywriting",
+  input,
+});
+```
+
+tidak peduli apakah modelnya Gemini atau Groq.
+
+---
+
+# 32. PWA
+
+Karena Anda sebelumnya juga mengarah ke aplikasi mobile/PWA, saya akan jadikan:
+
+**Desktop + Mobile responsive + installable PWA**
+
+bukan dua aplikasi berbeda.
+
+Next.js sekarang mempunyai dukungan/panduan resmi untuk manifest, service worker, push notification dan install-to-home-screen. ([Next.js][2])
+
+Mobile navigation:
+
+```text
+┌──────────────────────┐
+│ VIMERO       🔔 ☰    │
+├──────────────────────┤
+│                      │
+│ Dashboard            │
+│                      │
+│ AI Recommendation    │
+│                      │
+│ Today's Content      │
+│                      │
+│ Calendar              │
+│                      │
+├──────────────────────┤
+│ 🏠  ✨  📅  📊  ⚙️ │
+└──────────────────────┘
+```
+
+---
+
+# 33. MVP — jangan langsung bangun semuanya
+
+Ini sangat penting.
+
+## MVP 1
+
+Saya batasi menjadi:
+
+```text
+✓ Authentication
+✓ Business Profile
+✓ Brand Kit
+✓ Dashboard
+✓ AI Strategist
+✓ Content Planner
+✓ AI Copywriter
+✓ Content Calendar
+✓ AI Critic
+✓ Content Library
+✓ Supabase Storage
+```
+
+**Belum perlu:**
+
+```text
+✗ Video generator
+✗ Competitor crawler
+✗ Advanced analytics
+✗ 8 social networks
+✗ Autonomous agent
+```
+
+---
+
+# 34. MVP 2
+
+Tambahkan:
+
+```text
+✓ Image Generator
+✓ Creative Director
+✓ Brand consistency
+✓ Social accounts
+✓ Buffer
+✓ Scheduling
+✓ Publishing
+```
+
+Baru VIMERO sudah bisa melakukan:
+
+> **Ide → konten → gambar → review → jadwal → publish.**
+
+---
+
+# 35. MVP 3
+
+Kemudian:
+
+```text
+✓ Analytics
+✓ Performance scoring
+✓ AI recommendations
+✓ Trend research
+✓ Competitor research
+```
+
+---
+
+# 36. MVP 4
+
+Baru:
+
+```text
+✓ Video workflow
+✓ Voice
+✓ Advanced automation
+✓ Autonomous campaigns
+✓ Multi-business
+✓ Team collaboration
+✓ Billing
+```
+
+---
+
+# 37. AI Learning Loop
+
+Ini yang akan menjadi pembeda VIMERO.
+
+Setelah konten dipublish:
+
+```text
+CONTENT
+   ↓
+RESULT
+   ↓
+ANALYTICS
+   ↓
+AI ANALYST
+   ↓
+LEARNING
+   ↓
+NEXT CONTENT
+```
+
+Misalnya:
+
+```text
+AI menemukan:
+
+Reels edukasi
+→ engagement +41%
+
+Post produk langsung
+→ engagement -12%
+
+Hook pertanyaan
+→ retention +28%
+```
+
+Maka strategi berikutnya otomatis berubah.
+
+---
+
+# 38. Memory AI
+
+Saya juga ingin membuat:
+
+```text
+BUSINESS MEMORY
+```
+
+yang berisi:
+
+```text
+Brand
+Audience
+Products
+Best content
+Worst content
+Successful hooks
+Failed hooks
+Preferred tone
+Visual style
+Campaign history
+Performance
+```
+
+Bisa menggunakan embeddings/pgvector di PostgreSQL sehingga AI dapat mencari pengalaman bisnis yang relevan dari konten lama. Supabase menyediakan pgvector sebagai ekstensi PostgreSQL. ([Supabase][3])
+
+---
+
+# 39. Contoh workflow nyata
+
+Anda mengetik:
+
+> **"Saya ingin menjual produk A lebih agresif bulan ini."**
+
+VIMERO:
+
+```text
+BUSINESS STRATEGIST
+        ↓
+analisis tujuan
+        ↓
+CONTENT STRATEGIST
+        ↓
+30 ide
+        ↓
+COPYWRITER
+        ↓
+caption + script
+        ↓
+CREATIVE DIRECTOR
+        ↓
+visual direction
+        ↓
+IMAGE GENERATOR
+        ↓
+gambar
+        ↓
+AI CRITIC
+        ↓
+score 91/100
+        ↓
+USER APPROVE
+        ↓
+CALENDAR
+        ↓
+BUFFER
+        ↓
+PUBLISH
+        ↓
+ANALYTICS
+```
+
+---
+
+# 40. Yang paling penting: AI tidak boleh halusinasi bisnis
+
+Kita buat **Business Context Engine**.
+
+Setiap AI agent mendapatkan:
+
+```text
+SYSTEM RULES
++
+BUSINESS PROFILE
++
+BRAND KIT
++
+PRODUCT DATA
++
+CURRENT CAMPAIGN
++
+RELEVANT MEMORY
++
+TASK
+```
+
+Jadi copywriter tidak akan tiba-tiba mengarang:
+
+> "Produk kami sudah dipercaya 1 juta pelanggan"
+
+kalau database bisnis tidak mengatakan demikian.
+
+---
+
+# 41. Quality Gate tambahan
+
+Sebelum publish:
+
+```text
+FACT CHECK
+   ↓
+BRAND CHECK
+   ↓
+LEGAL/RISK CHECK
+   ↓
+VISUAL CHECK
+   ↓
+PLATFORM CHECK
+   ↓
+QUALITY SCORE
+```
+
+Misalnya:
+
+```text
+⚠️ Klaim belum ditemukan di database bisnis.
+
+"Terbaik di Indonesia"
+
+[Perbaiki] [Tetap gunakan]
+```
+
+Ini sangat berguna.
+
+---
+
+# 42. Cost strategy
+
+Target awal:
+
+### Rp 0
+
+dengan kombinasi:
+
+```text
+Supabase Free
+Gemini Free
+Groq Free
+Cloudflare AI Free
+Buffer Free
+Vercel/hosting free-tier
+```
+
+Supabase Free saat ini mencakup 500 MB database, 1 GB file storage, 5 GB egress dan hingga 50.000 MAU, meskipun project Free dapat dipause setelah satu minggu tidak aktif. ([Supabase][1])
+
+Buffer Free saat ini memberikan hingga 3 channel, 10 scheduled posts per channel, 100 ideas, dan 3.000 API requests per bulan. ([Buffer][11])
+
+---
+
+# 43. Namun ada satu koreksi dari blueprint awal saya
+
+**Jangan menjadikan Cloudflare AI sebagai AI utama.**
+
+Saya revisi:
+
+```text
+PRIMARY BRAIN
+Gemini
+
+FAST / FALLBACK
+Groq
+
+UTILITY AI
+Cloudflare
+
+SOCIAL
+Buffer
+```
+
+Cloudflare Free sangat berguna, tetapi 10.000 Neurons/hari adalah kuota compute, dan beberapa model tertentu sudah memerlukan Workers Paid. ([Cloudflare Docs][12])
+
+---
+
+# 44. Struktur folder proyek
+
+Blueprint kode:
+
+```text
+vimeo/
+│
+├── app/
+│   ├── (dashboard)/
+│   │   ├── dashboard/
+│   │   ├── strategy/
+│   │   ├── research/
+│   │   ├── content/
+│   │   ├── creative/
+│   │   ├── calendar/
+│   │   ├── publishing/
+│   │   ├── analytics/
+│   │   └── ai/
+│   │
+│   ├── api/
+│   │
+│   └── auth/
+│
+├── components/
+│   ├── ui/
+│   ├── dashboard/
+│   ├── content/
+│   ├── calendar/
+│   └── ai/
+│
+├── lib/
+│   ├── ai/
+│   │   ├── router.ts
+│   │   ├── providers/
+│   │   └── agents/
+│   │
+│   ├── buffer/
+│   ├── analytics/
+│   ├── storage/
+│   └── security/
+│
+├── supabase/
+│   ├── migrations/
+│   ├── functions/
+│   └── seed.sql
+│
+├── types/
+│
+└── public/
+```
+
+---
+
+# 45. Roadmap yang saya sarankan
+
+```text
+PHASE 0
+Architecture
+        ↓
+PHASE 1
+Database + Auth
+        ↓
+PHASE 2
+Dashboard
+        ↓
+PHASE 3
+AI Strategist
+        ↓
+PHASE 4
+Content Factory
+        ↓
+PHASE 5
+AI Critic
+        ↓
+PHASE 6
+Image Studio
+        ↓
+PHASE 7
+Calendar
+        ↓
+PHASE 8
+Buffer Publishing
+        ↓
+PHASE 9
+Analytics
+        ↓
+PHASE 10
+AI Learning
+```
+
+---
+
+# 46. Dan target akhirnya
+
+Saya membayangkan halaman utama akhirnya seperti ini:
+
+```text
+┌─────────────────────────────────────────────────────┐
+│ VIMERO DIGITAL COMMAND CENTER              ● ONLINE │
+├─────────────┬───────────────────────────────────────┤
+│             │                                       │
+│ 🏠 Home     │  GOOD AFTERNOON, ADANG                │
+│             │                                       │
+│ 🧠 Strategy │  Your business is ready.             │
+│             │                                       │
+│ 🔎 Research │ ┌───────┐ ┌───────┐ ┌────────────┐  │
+│             │ │CONTENT│ │REACH  │ │ENGAGEMENT  │  │
+│ ✍ Content   │ │  18   │ │12.8K  │ │   8.4%     │  │
+│             │ └───────┘ └───────┘ └────────────┘  │
+│ 🎨 Creative │                                       │
+│             │ AI RECOMMENDATION                    │
+│ 📅 Calendar │                                       │
+│             │ 🔥 Buat 3 Reels edukasi               │
+│ 📤 Publish  │                                       │
+│             │ [ GENERATE ]                          │
+│ 📊 Analytics│                                       │
+│             │ CONTENT PIPELINE                      │
+│ 🤖 AI       │                                       │
+│             │ Idea → Draft → Review → Schedule     │
+│ ⚙ Settings  │                                       │
+└─────────────┴───────────────────────────────────────┘
+```
+
+---
+
+## Keputusan arsitektur final
+
+Kalau blueprint ini kita kunci, saya akan menggunakan:
+
+**Frontend**
+
+> Next.js + TypeScript + Tailwind + shadcn/ui + PWA
+
+**Backend**
+
+> Supabase PostgreSQL + Auth + Storage + Edge Functions + pg_cron
+
+**AI**
+
+> Gemini → otak utama
+> Groq → fast/fallback
+> Cloudflare → utility AI
+> AI Router → pengatur semuanya
+
+**Social**
+
+> Buffer API → publishing/scheduling
+
+**Database**
+
+> PostgreSQL + pgvector
+
+**Filosofi**
+
+> **AI menghasilkan → AI mengkritik → manusia menyetujui → sistem menerbitkan → analytics mengajari AI.**
+
+Dan menurut saya, **jangan langsung membuat ini sebagai SaaS multi-user**. Kita buat dulu sebagai **versi personal/business cockpit milik Anda sendiri**. Setelah workflow terbukti menghasilkan konten dan benar-benar membantu bisnis, baru kita aktifkan multi-user, subscription, workspace, billing, dan agent marketplace.
+
+### Langkah berikutnya yang paling tepat
+
+Blueprint ini sudah cukup untuk masuk ke **Blueprint Teknis v1**. Isinya nanti bukan konsep lagi, tetapi **SQL schema lengkap semua tabel + ERD + struktur API + JSON schema setiap AI Agent + system prompt tiap Agent + AI Router + state machine content + workflow Buffer + struktur folder Next.js + aturan RLS**.
+
+Itulah dokumen yang kemudian bisa langsung saya ubah menjadi **satu Master Prompt untuk Antigravity IDE** agar IDE membangun VIMERO secara bertahap tanpa “berimprovisasi” mengubah arsitektur di tengah jalan.
+
+[1]: https://supabase.com/pricing?utm_source=chatgpt.com "Pricing & Fees | Supabase"
+[2]: https://nextjs.org/docs/app/guides/progressive-web-apps?utm_source=chatgpt.com "Guides: PWAs | Next.js"
+[3]: https://supabase.com/docs/guides/database/overview?utm_source=chatgpt.com "Database | Supabase Docs"
+[4]: https://buffer.com/api?utm_source=chatgpt.com "Buffer API | Build with Buffer"
+[5]: https://ai.google.dev/gemini-api/docs/pricing?hl=id&utm_source=chatgpt.com "Harga Gemini Developer API  |  Gemini API  |  Google AI for Developers"
+[6]: https://console.groq.com/docs/rate-limits?utm_source=chatgpt.com "Rate Limits - GroqDocs"
+[7]: https://buffer.com/made-for/developers?utm_source=chatgpt.com "Social Media API for Developers | Buffer"
+[8]: https://supabase.com/docs/guides/functions/schedule-functions?utm_source=chatgpt.com "Scheduling Edge Functions | Supabase Docs"
+[9]: https://supabase.com/docs/guides/getting-started/api-keys?utm_source=chatgpt.com "API keys | Supabase Docs"
+[10]: https://supabase.com/docs/guides/functions/storage-caching?utm_source=chatgpt.com "Integrating with Supabase Storage | Supabase Docs"
+[11]: https://buffer.com/pricing?utm_source=chatgpt.com "Pricing | Buffer"
+[12]: https://developers.cloudflare.com/workers-ai/platform/pricing/?utm_source=chatgpt.com "Pricing · Cloudflare Workers AI docs"
