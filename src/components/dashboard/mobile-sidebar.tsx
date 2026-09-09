@@ -21,11 +21,11 @@ export function MobileSidebar({ businessId, businessName, userEmail, userRole }:
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden text-muted-foreground hover:text-white">
-          <Menu className="h-5 w-5" />
-          <span className="sr-only">Toggle menu</span>
-        </Button>
+      <SheetTrigger 
+        render={<Button variant="ghost" size="icon" className="md:hidden text-muted-foreground hover:text-white" />}
+      >
+        <Menu className="h-5 w-5" />
+        <span className="sr-only">Toggle menu</span>
       </SheetTrigger>
       <SheetContent side="left" className="w-72 p-0 bg-[#0d0f1f] border-r-border/50 flex flex-col h-full text-foreground">
         <SheetTitle className="sr-only">Menu Navigasi Mobile</SheetTitle>
