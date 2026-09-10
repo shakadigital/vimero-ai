@@ -105,3 +105,31 @@ const ImageTransition: React.FC<{ assetUrl: string, durationInFrames: number }> 
     </AbsoluteFill>
   );
 }
+
+// Komponen helper untuk efek teks dinamis jika TTS gagal memberikan data subtitle
+const FallbackTypography: React.FC<{ text: string, durationInFrames: number }> = ({ text, durationInFrames }) => {
+  const frame = useCurrentFrame();
+  const words = text.split(' ').filter(w => w.trim() !== '');
+  if (words.length === 0) return null;
+  
+  // Asumsikan padding 30 frame (1 detik) di awal dan akhir
+  const activeDuration = Math.max(1, durationInFrames - 60); 
+  const framesPerWord = activeDuration / words.length;
+  
+  const currentWordIndex = Math.floor((frame - 30) / framesPerWord);
+  
+  // Tampilkan kata jika berada di dalam rentang
+  const activeWord = currentWordIndex >= 0 && currentWordIndex < words.length ? words[currentWordIndex] : '';
+
+  return (
+    <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '20px', padding: '40px', maxWidth: '80%' }}>
+        {activeWord && (
+          <h1 style={{ color: '#fbbf24', fontSize: '120px', fontWeight: '900', textAlign: 'center', textShadow: '0 8px 30px rgba(0,0,0,0.8), 0 4px 10px rgba(0,0,0,0.6)', textTransform: 'uppercase', transform: 'scale(1.1)' }}>
+            {activeWord}
+          </h1>
+        )}
+      </div>
+    </AbsoluteFill>
+  );
+}
