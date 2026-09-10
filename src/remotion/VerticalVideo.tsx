@@ -112,24 +112,30 @@ const FallbackTypography: React.FC<{ text: string, durationInFrames: number }> =
   const words = text.split(' ').filter(w => w.trim() !== '');
   if (words.length === 0) return null;
   
+  // Gabungkan kata-kata menjadi frase (maksimal 5 kata)
+  const phrases = [];
+  for (let i = 0; i < words.length; i += 5) {
+    phrases.push(words.slice(i, i + 5).join(' '));
+  }
+
   // Asumsikan padding 30 frame (1 detik) di awal dan akhir
   const activeDuration = Math.max(1, durationInFrames - 60); 
-  const framesPerWord = activeDuration / words.length;
+  const framesPerPhrase = activeDuration / phrases.length;
   
-  const currentWordIndex = Math.floor((frame - 30) / framesPerWord);
+  const currentPhraseIndex = Math.floor((frame - 30) / framesPerPhrase);
   
   // Tampilkan kata jika berada di dalam rentang
-  const activeWord = currentWordIndex >= 0 && currentWordIndex < words.length ? words[currentWordIndex] : '';
+  const activePhrase = currentPhraseIndex >= 0 && currentPhraseIndex < phrases.length ? phrases[currentPhraseIndex] : '';
 
   return (
-    <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '20px', padding: '40px', maxWidth: '80%' }}>
-        {activeWord && (
-          <h1 style={{ color: '#fbbf24', fontSize: '120px', fontWeight: '900', textAlign: 'center', textShadow: '0 8px 30px rgba(0,0,0,0.8), 0 4px 10px rgba(0,0,0,0.6)', textTransform: 'uppercase', transform: 'scale(1.1)' }}>
-            {activeWord}
-          </h1>
-        )}
-      </div>
+    <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: '160px' }}>
+      {activePhrase && (
+        <div style={{ backgroundColor: 'rgba(0,0,0,0.6)', padding: '25px 50px', borderRadius: '25px', border: '2px solid rgba(255,255,255,0.1)', maxWidth: '85%' }}>
+          <h2 style={{ color: 'white', fontSize: '65px', fontWeight: '800', textAlign: 'center', margin: 0, textShadow: '0 4px 15px rgba(0,0,0,0.8)' }}>
+            {activePhrase}
+          </h2>
+        </div>
+      )}
     </AbsoluteFill>
   );
 }

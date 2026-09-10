@@ -17,48 +17,54 @@ export const KineticTypography: React.FC<{ subtitles?: SubtitleToken[] }> = ({ s
 
   const currentMs = (frame / fps) * 1000;
 
-  // Temukan kata mana yang sedang aktif berdasarkan currentMs
-  // offset dalam ticks (10.000 = 1 ms)
-  const activeWordIndex = subtitles.findIndex((sub) => {
-    const subStartMs = sub.offset / 10000;
-    const subEndMs = (sub.offset + sub.duration) / 10000;
-    // Berikan sedikit kelonggaran
-    return currentMs >= subStartMs && currentMs <= subEndMs + 100;
+  // Gabungkan kata-kata menjadi frase (maksimal 5 kata) agar timing tidak terlihat meleset
+  const phrases = React.useMemo(() => {
+    const arr = [];
+    for (let i = 0; i < subtitles.length; i += 5) {
+      const chunk = subtitles.slice(i, i + 5);
+      const text = chunk.map(s => s.text).join(' ');
+      const startMs = chunk[0].offset / 10000;
+      const endMs = (chunk[chunk.length - 1].offset + chunk[chunk.length - 1].duration) / 10000;
+      arr.push({ text, startMs, endMs });
+    }
+    return arr;
+  }, [subtitles]);
+
+  // Temukan frase mana yang sedang aktif berdasarkan currentMs
+  const activePhraseIndex = phrases.findIndex((p) => {
+    // Berikan sedikit kelonggaran 300ms agar transisi lebih mulus
+    return currentMs >= p.startMs && currentMs <= p.endMs + 300;
   });
 
-  const activeWord = activeWordIndex !== -1 ? subtitles[activeWordIndex].text : '';
+  const activePhrase = activePhraseIndex !== -1 ? phrases[activePhraseIndex].text : '';
 
   return (
-    <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: '20px',
-          padding: '40px',
-          maxWidth: '80%',
-        }}
-      >
-        {activeWord && (
-          <h1
+    <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: '160px' }}>
+      {activePhrase && (
+        <div
+          style={{
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            padding: '25px 50px',
+            borderRadius: '25px',
+            border: '2px solid rgba(255,255,255,0.1)',
+            maxWidth: '85%',
+          }}
+        >
+          <h2
             style={{
-              color: '#fbbf24', // Amber/Yellow
-              fontSize: '120px',
-              fontWeight: '900',
+              color: 'white',
+              fontSize: '65px',
+              fontWeight: '800',
               textAlign: 'center',
-              textShadow: '0 8px 30px rgba(0,0,0,0.8), 0 4px 10px rgba(0,0,0,0.6)',
-              textTransform: 'uppercase',
+              margin: 0,
+              textShadow: '0 4px 15px rgba(0,0,0,0.8)',
               fontFamily: 'sans-serif',
-              transform: 'scale(1.1)', // Karaoke pop effect
             }}
           >
-            {activeWord}
-          </h1>
-        )}
-      </div>
+            {activePhrase}
+          </h2>
+        </div>
+      )}
     </AbsoluteFill>
   );
 };
