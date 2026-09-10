@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Player } from '@remotion/player'
 import { VerticalVideo } from '@/remotion/VerticalVideo'
 import { Button } from '@/components/ui/button'
-import { Download, Loader2, PlayCircle, ImagePlus } from 'lucide-react'
+import { Download, Loader2, PlayCircle, ImagePlus, Play, Video as VideoIcon } from 'lucide-react'
 import { renderVideoAction } from '@/lib/actions/render-video'
 import { generateCreativeImage } from '@/lib/actions/studio'
 import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
+import { Progress } from '@/components/ui/progress'
 
 interface VideoPlayerProps {
   businessId?: string
@@ -20,7 +22,46 @@ interface VideoPlayerProps {
 export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, content }: VideoPlayerProps) {
   const [isRendering, setIsRendering] = useState(false)
   const [isGeneratingVisual, setIsGeneratingVisual] = useState(false)
-  const [renderedVideoUrl, setRenderedVideoUrl] = useState<string | null>(null)
+  const [renderProgress, setRenderProgress] = useState(0)
+  const [renderStatus, setRenderStatus] = useState<string | null>(null)
+  const [renderUrl, setRenderUrl] = useState<string | null>(null)
+  const [activeRenderId, setActiveRenderId] = useState<string | null>(null)
+
+  const supabase = createClient()
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (activeRenderId && isRendering) {
+      interval = setInterval(async () => {
+        const { data, error } = await supabase
+          .from('video_renders')
+          .select('status, progress, file_url, error_message')
+          .eq('id', activeRenderId)
+          .single()
+          
+        if (data) {
+          setRenderProgress(data.progress)
+          setRenderStatus(data.status)
+          
+          if (data.status === 'completed') {
+            setRenderUrl(data.file_url)
+            setIsRendering(false)
+            toast.success("Video berhasil di-render!")
+            clearInterval(interval)
+          } else if (data.status === 'failed') {
+            setIsRendering(false)
+            toast.error(`Render gagal: ${data.error_message}`)
+            clearInterval(interval)
+          }
+        }
+      }, 3000) // Poll every 3 seconds
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [activeRenderId, isRendering, supabase])
 
   // Jika ada data subtitle, hitung durasi dari kata terakhir (Edge TTS format)
   const lastSubtitle = subtitleData && subtitleData.length > 0 ? subtitleData[subtitleData.length - 1] : null;
@@ -56,28 +97,39 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
   }
 
   const handleRender = async () => {
-    if (!content) {
+    if (!content?.title) {
       toast.error("Pilih naskah terlebih dahulu!")
       return
     }
     
     setIsRendering(true)
-    toast.info("Memulai proses render MP4. Harap tunggu...")
+    setRenderProgress(0)
+    setRenderStatus('pending')
+    toast.info("Mengirim tugas render ke antrean...")
     
     try {
       const fullText = content ? `${content.hook || ''} ${content.body || ''} ${content.cta || ''}` : '';
-      const res = await renderVideoAction(audioUrl || null, content.title, mediaAssets || [], subtitleData || null, fullText)
+      const res = await renderVideoAction(
+        audioUrl || null, 
+        content.title, 
+        mediaAssets || [], 
+        subtitleData || null, 
+        fullText,
+        businessId,
+        content.id
+      )
       
-      if (res?.success) {
-        toast.success("Video berhasil di-render!")
-        setRenderedVideoUrl(res.url!)
+      if (res?.success && res.renderId) {
+        setActiveRenderId(res.renderId)
+        toast.success("Proses render dimulai di latar belakang!")
       } else {
-        toast.error("Gagal merender video: " + res?.error)
+        setIsRendering(false)
+        toast.error("Gagal memulai render: " + res?.error)
       }
     } catch (error: any) {
-      toast.error("Terjadi kesalahan: " + error.message)
-    } finally {
+      console.error(error)
       setIsRendering(false)
+      toast.error("Terjadi kesalahan: " + error.message)
     }
   }
 
@@ -103,15 +155,15 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
       </div>
 
       <div className="mt-8 flex w-full max-w-[320px] flex-col gap-3">
-        {renderedVideoUrl ? (
+        {renderUrl ? (
           <>
-            <Button className="w-full gap-2 font-semibold transition-all hover:bg-white/10" variant="outline" onClick={() => window.open(renderedVideoUrl, '_blank')}>
+            <Button className="w-full gap-2 font-semibold transition-all hover:bg-white/10" variant="outline" onClick={() => window.open(renderUrl, '_blank')}>
               <PlayCircle className="h-4 w-4" />
               Pratinjau Hasil MP4
             </Button>
             <Button className="w-full gap-2 font-semibold bg-accent text-accent-foreground hover:bg-accent/90 shadow-[0_0_15px_rgba(236,72,153,0.3)] transition-all" onClick={() => {
               const a = document.createElement('a');
-              a.href = renderedVideoUrl;
+              a.href = renderUrl;
               a.download = `Vimero-${content?.title || 'video'}.mp4`;
               a.click();
             }}>
@@ -156,6 +208,23 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
                 </>
               )}
             </Button>
+          </div>
+        )}
+
+        {/* Render Progress Overlay / Status */}
+        {isRendering && (
+          <div className="mt-6 p-6 rounded-xl border border-white/10 bg-black/40 backdrop-blur-md">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-white flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-pink-500" />
+                Memproses Video ({renderStatus === 'pending' ? 'Menunggu antrean...' : 'Sedang merender...'})
+              </h3>
+              <span className="text-sm font-bold text-pink-400">{renderProgress}%</span>
+            </div>
+            <Progress value={renderProgress} className="h-2 bg-white/10" indicatorColor="bg-gradient-to-r from-pink-500 to-violet-500" />
+            <p className="text-xs text-muted-foreground mt-3">
+              Proses ini berjalan di latar belakang. Anda dapat menutup tab atau berpindah halaman.
+            </p>
           </div>
         )}
       </div>
