@@ -84,7 +84,7 @@ export function ResearchCard({ item }: ResearchCardProps) {
 
   return (
     <Card className={`flex flex-col transition-opacity ${isGenerating ? 'opacity-75' : ''}`}>
-      <CardHeader className="pb-3">
+      <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-3">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-base leading-tight">{item.title}</CardTitle>
           <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0 capitalize">
@@ -99,11 +99,11 @@ export function ResearchCard({ item }: ResearchCardProps) {
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="flex-grow">
+      <CardContent className="flex-grow p-4 pt-0 sm:p-6 sm:pt-0">
         <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-4">{item.content}</p>
       </CardContent>
 
-      <CardFooter className="flex gap-2 justify-between border-t pt-4">
+      <CardFooter className="flex gap-2 justify-between border-t p-4 pt-3 sm:p-6 sm:pt-4">
         <Button
           size="sm"
           onClick={handleGenerate}

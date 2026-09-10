@@ -73,39 +73,39 @@ export async function KpiCards({ businessId }: { businessId: string }) {
   ]
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       {cards.map((card, idx) => {
         const Icon = card.icon
         return (
           <div
             key={idx}
-            className="relative overflow-hidden rounded-2xl bg-[#151833] border border-[#23274e] p-5 shadow-lg shadow-black/20 hover:border-primary/50 transition-all duration-300 group"
+            className="relative overflow-hidden rounded-2xl bg-[#151833] border border-[#23274e] p-3 sm:p-5 shadow-lg shadow-black/20 hover:border-primary/50 transition-all duration-300 group"
           >
             {/* Ambient Corner Glow (Smart Farm watermark feel) */}
             <div className={`absolute -right-4 -top-4 h-24 w-24 rounded-full ${card.glowColor} blur-2xl pointer-events-none group-hover:scale-125 transition-transform duration-500`} />
             
             <div className="flex items-start justify-between relative z-10">
-              <div className="space-y-2">
-                <div className={`h-11 w-11 rounded-xl ${card.iconBg} flex items-center justify-center shadow-md shadow-black/30 group-hover:scale-105 transition-transform`}>
-                  <Icon className="h-5 w-5" />
+              <div className="space-y-2 w-full">
+                <div className={`h-9 w-9 sm:h-11 sm:w-11 rounded-xl ${card.iconBg} flex items-center justify-center shadow-md shadow-black/30 group-hover:scale-105 transition-transform`}>
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
                 
-                <div className="pt-2">
-                  <p className="text-[11px] font-extrabold tracking-wider text-muted-foreground uppercase">
+                <div className="pt-1 sm:pt-2">
+                  <p className="text-[10px] sm:text-[11px] font-extrabold tracking-wider text-muted-foreground uppercase leading-tight line-clamp-2">
                     {card.label}
                   </p>
-                  <p className="text-2xl lg:text-3xl font-black text-white tracking-tight mt-0.5">
+                  <p className="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight mt-0.5">
                     {card.value}
                   </p>
-                  <p className={`text-xs font-medium mt-1 ${card.badgeColor} flex items-center gap-1`}>
+                  <p className={`text-[10px] sm:text-xs font-medium mt-1 ${card.badgeColor} flex items-center gap-1 line-clamp-1`}>
                     {card.subtext}
                   </p>
                 </div>
               </div>
 
               {/* Watermark circle icon in corner like Smart Farm */}
-              <div className="h-12 w-12 rounded-full bg-white/[0.03] border border-white/[0.04] flex items-center justify-center opacity-60">
-                <div className="h-4 w-4 rounded-full bg-white/10" />
+              <div className="h-8 w-8 sm:h-12 sm:w-12 rounded-full bg-white/[0.03] border border-white/[0.04] hidden sm:flex items-center justify-center opacity-60 flex-shrink-0">
+                <div className="h-3 w-3 sm:h-4 sm:w-4 rounded-full bg-white/10" />
               </div>
             </div>
           </div>

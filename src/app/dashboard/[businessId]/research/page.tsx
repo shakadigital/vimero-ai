@@ -51,7 +51,7 @@ export default async function ResearchPage({
       description="Biarkan AI mencari tren pasar, celah kompetitor, dan masalah audiens untuk Anda."
     >
       <Tabs defaultValue={currentTab} className="w-full">
-        <TabsList className="mb-6">
+        <TabsList className="mb-4 sm:mb-6">
           <TabsTrigger value="trend" className="gap-2"><TrendingUp className="w-4 h-4"/> Tren Konten</TabsTrigger>
           <TabsTrigger value="competitor" className="gap-2"><Target className="w-4 h-4"/> Kompetitor</TabsTrigger>
           <TabsTrigger value="audience" className="gap-2"><Users className="w-4 h-4"/> Audiens</TabsTrigger>
@@ -59,7 +59,7 @@ export default async function ResearchPage({
         </TabsList>
 
         <TabsContent value="trend">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center mb-4 sm:mb-6">
             <h2 className="text-xl font-semibold">Laporan Tren Terkini</h2>
             <form action={generateTrend}>
               <SubmitButton pendingText="Meriset...">Mulai Riset Tren Baru</SubmitButton>
@@ -70,14 +70,14 @@ export default async function ResearchPage({
               <p className="text-muted-foreground mb-4">Belum ada riset tren. Klik tombol di atas untuk menyuruh AI mencari tren terkini di industri Anda.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
               {trendItems.map(item => <ResearchCard key={item.id} item={item} />)}
             </div>
           )}
         </TabsContent>
 
         <TabsContent value="competitor">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center mb-4 sm:mb-6">
             <h2 className="text-xl font-semibold">Analisis Celah Kompetitor</h2>
             <form action={generateCompetitor}>
               <SubmitButton pendingText="Meriset...">Mulai Analisis Kompetitor</SubmitButton>
@@ -88,14 +88,14 @@ export default async function ResearchPage({
               <p className="text-muted-foreground mb-4">Belum ada analisis kompetitor.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
               {competitorItems.map(item => <ResearchCard key={item.id} item={item} />)}
             </div>
           )}
         </TabsContent>
 
         <TabsContent value="audience">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center mb-4 sm:mb-6">
             <h2 className="text-xl font-semibold">Pemahaman Audiens (Pain Points)</h2>
             <form action={generateAudience}>
               <SubmitButton pendingText="Meriset...">Analisis Audiens</SubmitButton>
@@ -106,14 +106,14 @@ export default async function ResearchPage({
               <p className="text-muted-foreground mb-4">Belum ada laporan audiens.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
               {audienceItems.map(item => <ResearchCard key={item.id} item={item} />)}
             </div>
           )}
         </TabsContent>
 
         <TabsContent value="keyword">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-center mb-4 sm:mb-6">
             <h2 className="text-xl font-semibold">Riset Kata Kunci & SEO</h2>
             <form action={generateKeyword}>
               <SubmitButton pendingText="Meriset...">Cari Kata Kunci</SubmitButton>
@@ -124,7 +124,7 @@ export default async function ResearchPage({
               <p className="text-muted-foreground mb-4">Belum ada riset kata kunci.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
               {keywordItems.map(item => <ResearchCard key={item.id} item={item} />)}
             </div>
           )}

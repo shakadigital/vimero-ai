@@ -59,7 +59,7 @@ export function CalendarCard({ businessId, content, isScheduled = false }: { bus
     <div className={`border rounded-xl shadow-sm transition-all duration-200 ${isScheduled ? 'bg-indigo-50/30 border-indigo-100 dark:bg-indigo-950/20 dark:border-indigo-900' : 'bg-card hover:border-primary/30'}`}>
       {/* HEADER (Clickable to expand) */}
       <div 
-        className="flex justify-between items-start gap-4 p-4 cursor-pointer hover:bg-muted/30 rounded-t-xl transition-colors"
+        className="flex justify-between items-start gap-3 sm:gap-4 p-3 sm:p-4 cursor-pointer hover:bg-muted/30 rounded-t-xl transition-colors"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex-1">
@@ -83,7 +83,7 @@ export function CalendarCard({ businessId, content, isScheduled = false }: { bus
 
       {/* EXPANDABLE CONTENT PREVIEW */}
       {isExpanded && (
-        <div className="px-4 pb-4 animate-in slide-in-from-top-2 fade-in duration-200">
+        <div className="px-3 pb-3 sm:px-4 sm:pb-4 animate-in slide-in-from-top-2 fade-in duration-200">
           <div className="space-y-2 text-sm bg-muted/30 p-3 rounded-lg border">
             {content.hook && <p><strong className="text-primary">Hook:</strong> {content.hook}</p>}
             {content.body && <p className="text-muted-foreground leading-relaxed">{content.body}</p>}
@@ -92,7 +92,7 @@ export function CalendarCard({ businessId, content, isScheduled = false }: { bus
       )}
 
       {/* SCHEDULING FORM */}
-      <div className="p-4 pt-0">
+      <div className="p-3 pt-0 sm:p-4 sm:pt-0">
         {isScheduled ? (
         <div className="space-y-3">
           <div className="bg-background border rounded-lg p-3 flex items-center gap-3">
@@ -118,9 +118,9 @@ export function CalendarCard({ businessId, content, isScheduled = false }: { bus
       ) : (
         <div className="space-y-3 pt-2 border-t">
           <div>
-            <label className="text-xs font-semibold text-muted-foreground mb-1 block">Platform Tujuan:</label>
+            <label className="text-[11px] sm:text-xs font-semibold text-muted-foreground mb-1 block">Platform Tujuan:</label>
             <select 
-              className="w-full text-sm rounded-md border border-input bg-background px-3 py-2"
+              className="w-full text-xs sm:text-sm rounded-md border border-input bg-background px-3 py-1.5 sm:py-2"
               value={platform}
               onChange={(e) => setPlatform(e.target.value)}
             >
@@ -131,10 +131,10 @@ export function CalendarCard({ businessId, content, isScheduled = false }: { bus
             </select>
           </div>
           <div>
-            <label className="text-xs font-semibold text-muted-foreground mb-1 block">Tanggal & Waktu Tayang:</label>
+            <label className="text-[11px] sm:text-xs font-semibold text-muted-foreground mb-1 block">Tanggal & Waktu Tayang:</label>
             <input 
               type="datetime-local" 
-              className="w-full text-sm rounded-md border border-input bg-background px-3 py-2"
+              className="w-full text-xs sm:text-sm rounded-md border border-input bg-background px-3 py-1.5 sm:py-2"
               value={scheduledAt}
               onChange={(e) => setScheduledAt(e.target.value)}
             />

@@ -32,8 +32,8 @@ export function VideoStudioClient({ businessId, contents, mediaAssets, generatio
     : mediaAssets
 
   return (
-    <div className="flex h-full w-full gap-6">
-      <div className="glass-panel flex w-1/2 flex-col overflow-y-auto rounded-2xl transition-all duration-300 hover:border-primary/30 hover:shadow-primary/5 p-6">
+    <div className="flex flex-col lg:flex-row h-full w-full gap-6">
+      <div className="glass-panel flex w-full lg:w-1/2 flex-col overflow-y-auto rounded-2xl transition-all duration-300 hover:border-primary/30 hover:shadow-primary/5 p-6">
         <div className="mb-6 flex items-center gap-2 border-b pb-4">
           <Headphones className="h-5 w-5 text-primary" />
           <h3 className="font-semibold text-lg">AI Audio Generator</h3>
@@ -48,7 +48,7 @@ export function VideoStudioClient({ businessId, contents, mediaAssets, generatio
         />
       </div>
 
-      <div className="glass-panel flex w-1/2 flex-col rounded-2xl transition-all duration-300 hover:border-accent/30 hover:shadow-accent/5 p-6">
+      <div className="glass-panel flex w-full lg:w-1/2 flex-col rounded-2xl transition-all duration-300 hover:border-accent/30 hover:shadow-accent/5 p-6">
         <div className="mb-6 flex items-center gap-2 border-b pb-4">
           <Video className="h-5 w-5 text-primary" />
           <h3 className="font-semibold text-lg">Video Canvas Engine (9:16)</h3>
