@@ -53,6 +53,56 @@ export async function convertIdeaToDraft(businessId: string, ideaId: string, tit
   return { success: true, contentId: content.id }
 }
 
+/**
+ * Full auto pipeline: Ide → Generate AI → Evaluate AI Critic → Status final
+ * Tidak perlu interaksi manual sama sekali.
+ */
+export async function autoProcessIdea(businessId: string, ideaId: string, title: string, description: string) {
+  const supabase = await createClient()
+
+  // 1. Buat brief otomatis dari judul + deskripsi ide
+  const brief = description
+    ? `Ide Utama: "${title}". Konteks: "${description}". Buat konten yang menarik, relevan, dan persuasif berdasarkan ide tersebut.`
+    : `Ide Utama: "${title}". Buat konten yang menarik dan persuasif.`
+
+  // 2. Jalankan Copywriter AI
+  const aiResult = await runCopywriter(businessId, brief, 'Profesional & Engaging')
+
+  // 3. Insert ke content_ideas dulu (mark as converted)
+  await supabase.from('content_ideas').update({ status: 'converted' }).eq('id', ideaId)
+
+  // 4. Simpan konten langsung dengan hasil AI
+  const { data: content, error: contentError } = await supabase.from('contents').insert({
+    business_id: businessId,
+    idea_id: ideaId,
+    title,
+    hook: aiResult.hook,
+    body: aiResult.body,
+    cta: aiResult.cta,
+    hashtags: aiResult.hashtags,
+    status: 'generated'
+  }).select('id').single()
+
+  if (contentError) throw new Error(contentError.message)
+
+  // 5. Auto-evaluasi dengan AI Critic
+  const contentText = `Hook: ${aiResult.hook}\nBody: ${aiResult.body}\nCTA: ${aiResult.cta}`
+  const review = await runContentCritic(businessId, contentText)
+
+  const finalStatus = review.score >= 75 ? 'approved_recommended' : 'needs_improvement'
+
+  await supabase.from('contents').update({
+    ai_score: review.score,
+    ai_feedback: review.feedback,
+    ai_claim_warnings: review.claim_warnings,
+    status: finalStatus
+  }).eq('id', content.id)
+
+  revalidatePath(`/dashboard/${businessId}/contents`)
+  return { success: true, contentId: content.id, score: review.score, status: finalStatus }
+}
+
+
 export async function generateContentBody(businessId: string, contentId: string, brief: string, toneOfVoice: string = "Profesional") {
   const supabase = await createClient()
   
@@ -294,5 +344,63 @@ export async function unscheduleContent(businessId: string, contentId: string) {
 
   revalidatePath(`/dashboard/${businessId}/calendar`)
   revalidatePath(`/dashboard/${businessId}/contents`)
+  return { success: true }
+}
+
+export async function deleteContentIdea(businessId: string, ideaId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('content_ideas')
+    .delete()
+    .eq('id', ideaId)
+    .eq('business_id', businessId)
+  if (error) throw new Error(error.message)
+  revalidatePath(`/dashboard/${businessId}/contents/pillars`)
+  return { success: true }
+}
+
+export async function deleteAllPendingIdeas(businessId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('content_ideas')
+    .delete()
+    .eq('business_id', businessId)
+    .eq('status', 'pending')
+  if (error) throw new Error(error.message)
+  revalidatePath(`/dashboard/${businessId}/contents/pillars`)
+  return { success: true }
+}
+
+/** Hapus konten dari tabel contents + reset idea ke pending agar bisa di-generate ulang */
+export async function deleteContent(businessId: string, contentId: string) {
+  const supabase = await createClient()
+
+  // Ambil idea_id dulu sebelum hapus
+  const { data: content } = await supabase
+    .from('contents')
+    .select('idea_id')
+    .eq('id', contentId)
+    .eq('business_id', businessId)
+    .single()
+
+  // Hapus konten
+  const { error } = await supabase
+    .from('contents')
+    .delete()
+    .eq('id', contentId)
+    .eq('business_id', businessId)
+
+  if (error) throw new Error(error.message)
+
+  // Reset idea ke pending agar bisa di-generate ulang
+  if (content?.idea_id) {
+    await supabase
+      .from('content_ideas')
+      .update({ status: 'pending' })
+      .eq('id', content.idea_id)
+  }
+
+  revalidatePath(`/dashboard/${businessId}/contents`)
+  revalidatePath(`/dashboard/${businessId}/contents/pillars`)
   return { success: true }
 }

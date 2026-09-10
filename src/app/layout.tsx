@@ -31,6 +31,7 @@ export const viewport: Viewport = {
 };
 
 import { PwaRegistry } from "@/components/pwa-registry";
+import { Toaster } from "@/components/ui/sonner";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
         {children}
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   );
