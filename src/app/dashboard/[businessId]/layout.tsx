@@ -5,6 +5,7 @@ import { cache, Suspense } from 'react'
 import { SidebarNav } from '@/components/dashboard/sidebar-nav'
 import { Sparkles, Building2, LogOut, ArrowLeftRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import pkg from '../../../../package.json'
 
 const getBusinessLayoutData = cache(async (businessId: string) => {
   const supabase = await createClient()
@@ -130,7 +131,7 @@ export default async function BusinessLayout({
             </div>
           </div>
           <div className="text-[10px] text-center text-muted-foreground/60 mt-2 font-mono">
-            VIMERO v1.0.0
+            VIMERO v{pkg.version}
           </div>
         </div>
       </aside>
