@@ -11,7 +11,7 @@ export type VerticalVideoProps = {
 };
 
 export const VerticalVideo: React.FC<VerticalVideoProps> = ({ audioUrl, subtitleData, mediaAssets, title, fullText }) => {
-  const { durationInFrames, fps } = useVideoConfig();
+  const { durationInFrames } = useVideoConfig();
 
   // Filter out invalid assets
   const validAssets = mediaAssets?.filter(a => a?.file_url) || [];
