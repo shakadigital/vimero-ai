@@ -65,7 +65,8 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
     toast.info("Memulai proses render MP4. Harap tunggu...")
     
     try {
-      const res = await renderVideoAction(audioUrl || null, content.title, mediaAssets || [], subtitleData || null)
+      const fullText = content ? `${content.hook || ''} ${content.body || ''} ${content.cta || ''}` : '';
+      const res = await renderVideoAction(audioUrl || null, content.title, mediaAssets || [], subtitleData || null, fullText)
       
       if (res?.success) {
         toast.success("Video berhasil di-render!")
@@ -89,7 +90,8 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
             audioUrl,
             subtitleData,
             mediaAssets,
-            title: content?.title
+            title: content?.title,
+            fullText: content ? `${content.hook || ''} ${content.body || ''} ${content.cta || ''}` : ''
           }}
           durationInFrames={durationInFrames}
           compositionWidth={1080}

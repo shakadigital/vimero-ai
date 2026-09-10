@@ -15,7 +15,8 @@ export const RemotionRoot: React.FC = () => {
           audioUrl: null,
           subtitleData: null,
           mediaAssets: [],
-          title: 'Draft Konten'
+          title: 'Draft Konten',
+          fullText: ''
         }}
       />
     </>

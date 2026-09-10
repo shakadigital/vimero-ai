@@ -7,9 +7,10 @@ export type VerticalVideoProps = {
   subtitleData?: any; 
   mediaAssets?: any[];
   title?: string;
+  fullText?: string;
 };
 
-export const VerticalVideo: React.FC<VerticalVideoProps> = ({ audioUrl, subtitleData, mediaAssets, title }) => {
+export const VerticalVideo: React.FC<VerticalVideoProps> = ({ audioUrl, subtitleData, mediaAssets, title, fullText }) => {
   const { durationInFrames, fps } = useVideoConfig();
 
   // Filter out invalid assets
@@ -45,8 +46,8 @@ export const VerticalVideo: React.FC<VerticalVideoProps> = ({ audioUrl, subtitle
         }} />
       )}
       
-      {/* Title overlay - hanya jika tidak ada subtitle, atau bisa ditaruh di atas */}
-      {(!subtitleData || subtitleData.length === 0) && (
+      {/* Title overlay - hanya jika tidak ada teks narasi */}
+      {(!subtitleData || subtitleData.length === 0) && (!fullText) && (
         <AbsoluteFill style={{ justifyContent: 'flex-start', alignItems: 'center', padding: '160px 80px' }}>
           <h1 style={{ color: 'white', fontSize: 60, fontWeight: 'bold', textAlign: 'center', textShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
             {title || "Vimero AI Video"}
@@ -55,12 +56,14 @@ export const VerticalVideo: React.FC<VerticalVideoProps> = ({ audioUrl, subtitle
       )}
 
       {/* Kinetic Typography Subtitles */}
-      {subtitleData && subtitleData.length > 0 && (
+      {subtitleData && subtitleData.length > 0 ? (
         <KineticTypography subtitles={subtitleData} />
-      )}
+      ) : fullText ? (
+        <FallbackTypography text={fullText} durationInFrames={durationInFrames} />
+      ) : null}
 
       {/* Placeholder for status jika tidak ada audio (hanya pratinjau mentah) */}
-      {!audioUrl && (!subtitleData || subtitleData.length === 0) && (
+      {!audioUrl && (!subtitleData || subtitleData.length === 0) && (!fullText) && (
         <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', padding: '80px' }}>
           <div style={{
             backgroundColor: 'rgba(0,0,0,0.6)',

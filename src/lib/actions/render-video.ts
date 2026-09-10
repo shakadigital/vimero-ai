@@ -7,7 +7,7 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
-export async function renderVideoAction(audioUrl: string | null, title: string, mediaAssets: any[], subtitleData?: any) {
+export async function renderVideoAction(audioUrl: string | null, title: string, mediaAssets: any[], subtitleData?: any, fullText?: string) {
   try {
     const outputDir = path.join(process.cwd(), 'public', 'temp')
     if (!fs.existsSync(outputDir)) {
@@ -23,7 +23,8 @@ export async function renderVideoAction(audioUrl: string | null, title: string, 
       audioUrl,
       title,
       mediaAssets,
-      subtitleData
+      subtitleData,
+      fullText
     })
 
     // Hitung durasi
