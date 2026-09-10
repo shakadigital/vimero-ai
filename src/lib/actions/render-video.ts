@@ -7,7 +7,7 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
-export async function renderVideoAction(audioUrl: string | null, title: string, mediaAssets: any[]) {
+export async function renderVideoAction(audioUrl: string | null, title: string, mediaAssets: any[], subtitleData?: any) {
   try {
     const outputDir = path.join(process.cwd(), 'public', 'temp')
     if (!fs.existsSync(outputDir)) {
@@ -22,8 +22,14 @@ export async function renderVideoAction(audioUrl: string | null, title: string, 
     const props = JSON.stringify({
       audioUrl,
       title,
-      mediaAssets
+      mediaAssets,
+      subtitleData
     })
+
+    // Hitung durasi
+    const lastSubtitle = subtitleData && subtitleData.length > 0 ? subtitleData[subtitleData.length - 1] : null;
+    const audioDurationMs = lastSubtitle ? (lastSubtitle.offset + lastSubtitle.duration) / 10000 : null;
+    const durationInFrames = audioDurationMs ? Math.ceil((audioDurationMs / 1000) * 30) + 30 : (audioUrl ? 900 : 300);
 
     // Escape props untuk CLI (Windows command prompt sering bermasalah dengan tanda kutip ganda, jadi kita encode sebagai base64 atau escape)
     // Cara paling aman di CLI adalah menulis props ke file sementara JSON, lalu pass --props=./temp.json
@@ -33,7 +39,7 @@ export async function renderVideoAction(audioUrl: string | null, title: string, 
     
     // Jalankan npx remotion render CLI
     // Karena user menggunakan Windows, kita gunakan command yang aman
-    const cmd = `npx remotion render src/remotion/index.ts VerticalVideo "${outputPath}" --props="${propsPath}"`
+    const cmd = `npx remotion render src/remotion/index.ts VerticalVideo "${outputPath}" --props="${propsPath}" --frames=${durationInFrames}`
     
     console.log("Executing:", cmd)
     const { stdout, stderr } = await execAsync(cmd)

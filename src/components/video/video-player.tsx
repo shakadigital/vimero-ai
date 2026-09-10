@@ -22,9 +22,13 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
   const [isGeneratingVisual, setIsGeneratingVisual] = useState(false)
   const [renderedVideoUrl, setRenderedVideoUrl] = useState<string | null>(null)
 
+  // Jika ada data subtitle, hitung durasi dari kata terakhir (Edge TTS format)
+  const lastSubtitle = subtitleData && subtitleData.length > 0 ? subtitleData[subtitleData.length - 1] : null;
+  const audioDurationMs = lastSubtitle ? (lastSubtitle.offset + lastSubtitle.duration) / 10000 : null;
+  
   // Jika tidak ada audio, beri durasi default 300 frame (10 detik)
-  // Untuk rendering MP4 yang pas dengan audio, kita seharusnya membaca metadata audio, tapi kita gunakan estimasi
-  const durationInFrames = audioUrl ? 900 : 300
+  // Berikan padding 1 detik (30 frame) setelah kata terakhir agar video tidak langsung terpotong
+  const durationInFrames = audioDurationMs ? Math.ceil((audioDurationMs / 1000) * 30) + 30 : (audioUrl ? 900 : 300);
 
   const handleGenerateVisual = async () => {
     if (!content || !businessId) {
@@ -61,7 +65,7 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
     toast.info("Memulai proses render MP4. Harap tunggu...")
     
     try {
-      const res = await renderVideoAction(audioUrl || null, content.title, mediaAssets || [])
+      const res = await renderVideoAction(audioUrl || null, content.title, mediaAssets || [], subtitleData || null)
       
       if (res?.success) {
         toast.success("Video berhasil di-render!")

@@ -1,29 +1,42 @@
-import { AbsoluteFill, Audio, Img, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Audio, Img, useCurrentFrame, useVideoConfig, Series, interpolate } from 'remotion';
 import React from 'react';
+import { KineticTypography } from './KineticTypography';
 
 export type VerticalVideoProps = {
   audioUrl?: string | null;
-  subtitleData?: any; // For later kinetic typography
+  subtitleData?: any; 
   mediaAssets?: any[];
   title?: string;
 };
 
 export const VerticalVideo: React.FC<VerticalVideoProps> = ({ audioUrl, subtitleData, mediaAssets, title }) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { durationInFrames, fps } = useVideoConfig();
 
-  // Simple background using the first media asset (from Creative Studio)
-  const bgImage = mediaAssets && mediaAssets.length > 0 
-    ? mediaAssets[0].file_url 
-    : null;
+  // Filter out invalid assets
+  const validAssets = mediaAssets?.filter(a => a?.file_url) || [];
+  
+  // Calculate how long each image should be shown
+  const framesPerAsset = validAssets.length > 0 
+    ? Math.max(1, Math.floor(durationInFrames / validAssets.length)) 
+    : durationInFrames;
 
   return (
     <AbsoluteFill style={{ backgroundColor: '#0f172a' }}>
-      {bgImage ? (
-        <Img 
-          src={bgImage} 
-          style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.4 }} 
-        />
+      {validAssets.length > 0 ? (
+        <Series>
+          {validAssets.map((asset, index) => {
+            // Biarkan asset terakhir memakan sisa frame jika ada pembulatan
+            const duration = index === validAssets.length - 1 
+              ? durationInFrames - (index * framesPerAsset) 
+              : framesPerAsset;
+
+            return (
+              <Series.Sequence key={index} durationInFrames={duration}>
+                <ImageTransition assetUrl={asset.file_url} durationInFrames={duration} />
+              </Series.Sequence>
+            );
+          })}
+        </Series>
       ) : (
         <div style={{
           width: '100%',
@@ -32,29 +45,60 @@ export const VerticalVideo: React.FC<VerticalVideoProps> = ({ audioUrl, subtitle
         }} />
       )}
       
-      {/* Title overlay */}
-      <AbsoluteFill style={{ justifyContent: 'flex-start', alignItems: 'center', padding: '160px 80px' }}>
-        <h1 style={{ color: 'white', fontSize: 60, fontWeight: 'bold', textAlign: 'center', textShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
-          {title || "Vimero AI Video"}
-        </h1>
-      </AbsoluteFill>
+      {/* Title overlay - hanya jika tidak ada subtitle, atau bisa ditaruh di atas */}
+      {(!subtitleData || subtitleData.length === 0) && (
+        <AbsoluteFill style={{ justifyContent: 'flex-start', alignItems: 'center', padding: '160px 80px' }}>
+          <h1 style={{ color: 'white', fontSize: 60, fontWeight: 'bold', textAlign: 'center', textShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
+            {title || "Vimero AI Video"}
+          </h1>
+        </AbsoluteFill>
+      )}
 
-      {/* Placeholder for Subtitles or status */}
-      <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', padding: '80px' }}>
-        <div style={{
-          backgroundColor: 'rgba(0,0,0,0.6)',
-          padding: '30px 50px',
-          borderRadius: 30,
-          border: '4px solid rgba(255, 255, 255, 0.1)'
-        }}>
-          <h2 style={{ color: '#fbbf24', fontSize: 70, fontWeight: '900', textAlign: 'center' }}>
-            {audioUrl ? 'SEDANG MEMUTAR AUDIO' : 'MENUNGGU AUDIO'}
-          </h2>
-        </div>
-      </AbsoluteFill>
+      {/* Kinetic Typography Subtitles */}
+      {subtitleData && subtitleData.length > 0 && (
+        <KineticTypography subtitles={subtitleData} />
+      )}
+
+      {/* Placeholder for status jika tidak ada audio (hanya pratinjau mentah) */}
+      {!audioUrl && (!subtitleData || subtitleData.length === 0) && (
+        <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', padding: '80px' }}>
+          <div style={{
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            padding: '30px 50px',
+            borderRadius: 30,
+            border: '4px solid rgba(255, 255, 255, 0.1)'
+          }}>
+            <h2 style={{ color: '#fbbf24', fontSize: 70, fontWeight: '900', textAlign: 'center' }}>
+              MENUNGGU AUDIO
+            </h2>
+          </div>
+        </AbsoluteFill>
+      )}
 
       {/* Audio Track */}
       {audioUrl && <Audio src={audioUrl} />}
     </AbsoluteFill>
   );
 };
+
+// Komponen helper untuk efek scale-in lambat ala B-Roll
+const ImageTransition: React.FC<{ assetUrl: string, durationInFrames: number }> = ({ assetUrl, durationInFrames }) => {
+  const frame = useCurrentFrame();
+  const scale = interpolate(frame, [0, durationInFrames], [1, 1.1], { extrapolateRight: 'clamp' });
+  const opacity = interpolate(frame, [0, 15], [0, 0.6], { extrapolateRight: 'clamp' });
+
+  return (
+    <AbsoluteFill>
+      <Img 
+        src={assetUrl} 
+        style={{ 
+          width: '100%', 
+          height: '100%', 
+          objectFit: 'cover', 
+          opacity: opacity, // dark background opacity
+          transform: `scale(${scale})`
+        }} 
+      />
+    </AbsoluteFill>
+  );
+}
