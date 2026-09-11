@@ -15,7 +15,8 @@ export async function renderVideoAction(
   subtitleData?: any, 
   fullText?: string,
   businessId?: string,
-  contentId?: string
+  contentId?: string,
+  contentSegments?: { hook: number, body: number, cta: number }
 ) {
   try {
     const supabase = await createClient()
@@ -49,7 +50,7 @@ export async function renderVideoAction(
 
     console.log("Rendering video to", outputPath)
     
-    const props = JSON.stringify({ audioUrl, title, mediaAssets, subtitleData, fullText })
+    const props = JSON.stringify({ audioUrl, title, mediaAssets, subtitleData, fullText, contentSegments })
 
     const lastSubtitle = subtitleData && subtitleData.length > 0 ? subtitleData[subtitleData.length - 1] : null;
     const audioDurationMs = lastSubtitle ? (lastSubtitle.offset + lastSubtitle.duration) / 10000 : null;
@@ -70,7 +71,7 @@ export async function renderVideoAction(
       'remotion', 'render', 'src/remotion/index.ts', 'VerticalVideo', outputPath,
       `--props=${propsPath}`,
       `--frames=${durationInFrames}`
-    ])
+    ], { shell: true })
 
     // Fungsi untuk mengupdate progress secara throttled
     let lastUpdate = Date.now();

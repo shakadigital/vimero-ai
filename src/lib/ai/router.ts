@@ -38,6 +38,7 @@ export async function generateStructuredData<T>({
       system,
       prompt,
       schema,
+      maxTokens: 400, // Dikurangi dari 800 menjadi 400 untuk mencegah error Limit 1000 output tokens Groq
     })
 
     return { 

@@ -31,3 +31,21 @@ CRITICAL PROMPT ENGINEERING RULES:
     schema: DirectorOutputSchema,
   })
 }
+
+export const VideoDirectorSchema = z.object({
+  queries: z.array(z.string()).min(1).max(5).describe("List of short search keywords (max 3 words each) for Pexels Stock Video API. Break the script down into logical visual scenes (2 to 5 scenes depending on length). For each scene, provide a keyword.")
+})
+
+export async function runVideoDirector(businessId: string, context: string) {
+  const system = `You are a Stock Video Researcher. The user will provide a script.
+Break the script into logical visual scenes (2 to 5 scenes depending on the script's length and flow).
+Return a short search keyword (1-3 words max, in English) for each scene, optimized for a stock video search engine like Pexels.`
+
+  return callAgent({
+    agentType: 'BUSINESS_STRATEGIST',
+    businessId,
+    system,
+    prompt: context,
+    schema: VideoDirectorSchema,
+  })
+}

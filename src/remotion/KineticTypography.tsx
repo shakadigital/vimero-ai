@@ -24,7 +24,14 @@ export const KineticTypography: React.FC<{ subtitles?: SubtitleToken[] }> = ({ s
       const chunk = subtitles.slice(i, i + 5);
       const text = chunk.map(s => s.text).join(' ');
       const startMs = chunk[0].offset / 10000;
-      const endMs = (chunk[chunk.length - 1].offset + chunk[chunk.length - 1].duration) / 10000;
+      
+      // Ambil offset dari kata pertama di chunk berikutnya sebagai endMs,
+      // agar teks tetap tampil di layar meskipun ada jeda diam (silence)
+      const nextChunkFirstWord = i + 5 < subtitles.length ? subtitles[i + 5] : null;
+      const endMs = nextChunkFirstWord 
+        ? nextChunkFirstWord.offset / 10000 
+        : (chunk[chunk.length - 1].offset + chunk[chunk.length - 1].duration) / 10000 + 2000; // Tambah 2 detik untuk kata terakhir
+
       arr.push({ text, startMs, endMs });
     }
     return arr;
@@ -32,8 +39,7 @@ export const KineticTypography: React.FC<{ subtitles?: SubtitleToken[] }> = ({ s
 
   // Temukan frase mana yang sedang aktif berdasarkan currentMs
   const activePhraseIndex = phrases.findIndex((p) => {
-    // Berikan sedikit kelonggaran 300ms agar transisi lebih mulus
-    return currentMs >= p.startMs && currentMs <= p.endMs + 300;
+    return currentMs >= p.startMs && currentMs < p.endMs;
   });
 
   const activePhrase = activePhraseIndex !== -1 ? phrases[activePhraseIndex].text : '';

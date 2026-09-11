@@ -6,10 +6,11 @@ import { VerticalVideo } from '@/remotion/VerticalVideo'
 import { Button } from '@/components/ui/button'
 import { Download, Loader2, PlayCircle, ImagePlus, Play, Video as VideoIcon } from 'lucide-react'
 import { renderVideoAction } from '@/lib/actions/render-video'
-import { generateCreativeImage } from '@/lib/actions/studio'
+import { generateCreativeImage, generateStockVideo } from '@/lib/actions/studio'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { Progress } from '@/components/ui/progress'
+import puter from '@heyputer/puter.js'
 
 interface VideoPlayerProps {
   businessId?: string
@@ -22,10 +23,12 @@ interface VideoPlayerProps {
 export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, content }: VideoPlayerProps) {
   const [isRendering, setIsRendering] = useState(false)
   const [isGeneratingVisual, setIsGeneratingVisual] = useState(false)
+  const [isGeneratingStock, setIsGeneratingStock] = useState(false)
   const [renderProgress, setRenderProgress] = useState(0)
   const [renderStatus, setRenderStatus] = useState<string | null>(null)
   const [renderUrl, setRenderUrl] = useState<string | null>(null)
   const [activeRenderId, setActiveRenderId] = useState<string | null>(null)
+  const [tempMedia, setTempMedia] = useState<any>(null)
 
   const supabase = createClient()
 
@@ -96,6 +99,35 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
     }
   }
 
+  const handleStockVideo = async () => {
+    if (!content || !businessId) {
+      toast.error("Pilih naskah terlebih dahulu!")
+      return
+    }
+    const textBrief = `${content.hook || ''} ${content.body || ''} ${content.cta || ''}`
+    if (textBrief.trim().length < 10) {
+      toast.error("Naskah kosong atau terlalu pendek!")
+      return
+    }
+
+    setIsGeneratingStock(true)
+    toast.info("Mencari video stok yang sesuai... (Butuh beberapa detik)")
+    try {
+      const res = await generateStockVideo(businessId, content.id, textBrief)
+      if (res.success && res.imageUrls) {
+        // Karena ada revalidatePath di backend, aset media akan direfresh 
+        // secara otomatis saat komponen server dirender ulang.
+        // Kita bisa langsung membuang tempMedia dan rely on the revalidation
+        setTempMedia(null)
+        toast.success("Video stok berhasil ditemukan!")
+      }
+    } catch(err: any) {
+      toast.error(err.message || "Gagal mencari video stok")
+    } finally {
+      setIsGeneratingStock(false)
+    }
+  }
+
   const handleRender = async () => {
     if (!content?.title) {
       toast.error("Pilih naskah terlebih dahulu!")
@@ -116,7 +148,12 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
         subtitleData || null, 
         fullText,
         businessId,
-        content.id
+        content.id,
+        content ? {
+          hook: content.hook?.length || 0,
+          body: content.body?.length || 0,
+          cta: content.cta?.length || 0
+        } : undefined
       )
       
       if (res?.success && res.renderId) {
@@ -133,6 +170,8 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
     }
   }
 
+
+
   return (
     <div className="flex h-full w-full flex-col items-center justify-center p-4">
       <div className="relative aspect-[9/16] h-[calc(100vh-20rem)] max-h-[720px] w-auto overflow-hidden rounded-2xl border border-white/10 bg-black/60 shadow-[0_0_40px_rgba(0,0,0,0.5)] ring-1 ring-white/5 transition-all duration-500 hover:shadow-[0_0_50px_rgba(236,72,153,0.15)]">
@@ -141,9 +180,14 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
           inputProps={{
             audioUrl,
             subtitleData,
-            mediaAssets,
+            mediaAssets: tempMedia ? [...(mediaAssets || []), tempMedia] : (mediaAssets || []),
             title: content?.title,
-            fullText: content ? `${content.hook || ''} ${content.body || ''} ${content.cta || ''}` : ''
+            fullText: content ? `${content.hook || ''} ${content.body || ''} ${content.cta || ''}` : '',
+            contentSegments: content ? {
+              hook: content.hook?.length || 0,
+              body: content.body?.length || 0,
+              cta: content.cta?.length || 0
+            } : undefined
           }}
           durationInFrames={durationInFrames}
           compositionWidth={1080}
@@ -188,6 +232,24 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
                 <>
                   <ImagePlus className="h-4 w-4" />
                   Buat Visual Latar Belakang
+                </>
+              )}
+            </Button>
+            <Button 
+              className="w-full gap-2 font-semibold border-primary/50 hover:bg-primary/10 transition-all hover:-translate-y-0.5" 
+              variant="outline"
+              onClick={handleStockVideo} 
+              disabled={isGeneratingStock || !content}
+            >
+              {isGeneratingStock ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Mencari B-Roll...
+                </>
+              ) : (
+                <>
+                  <VideoIcon className="h-4 w-4" />
+                  Cari Video B-Roll (Stok)
                 </>
               )}
             </Button>

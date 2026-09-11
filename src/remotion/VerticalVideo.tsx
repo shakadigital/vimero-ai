@@ -1,4 +1,4 @@
-import { AbsoluteFill, Audio, Img, useCurrentFrame, useVideoConfig, Series, interpolate } from 'remotion';
+import { AbsoluteFill, Audio, Img, Video, useCurrentFrame, useVideoConfig, Series, interpolate } from 'remotion';
 import React from 'react';
 import { KineticTypography } from './KineticTypography';
 
@@ -8,32 +8,72 @@ export type VerticalVideoProps = {
   mediaAssets?: any[];
   title?: string;
   fullText?: string;
+  contentSegments?: { hook: number, body: number, cta: number };
 };
 
-export const VerticalVideo: React.FC<VerticalVideoProps> = ({ audioUrl, subtitleData, mediaAssets, title, fullText }) => {
+export const VerticalVideo: React.FC<VerticalVideoProps> = ({ audioUrl, subtitleData, mediaAssets, title, fullText, contentSegments }) => {
   const { durationInFrames } = useVideoConfig();
 
   // Filter out invalid assets
   const validAssets = mediaAssets?.filter(a => a?.file_url) || [];
   
-  // Calculate how long each image should be shown
-  const framesPerAsset = validAssets.length > 0 
-    ? Math.max(1, Math.floor(durationInFrames / validAssets.length)) 
-    : durationInFrames;
+  // Calculate proportional durations based on sentence lengths
+  let durations: number[] = [];
+  
+  if (validAssets.length > 0) {
+    const sentences = (fullText || '').split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
+    
+    if (sentences.length >= validAssets.length && sentences.length > 1) {
+      // Group sentences into chunks based on number of assets
+      const chunks: string[] = [];
+      const sentencesPerChunk = sentences.length / validAssets.length;
+      
+      let currentChunk = '';
+      let chunkIndex = 0;
+      
+      for (let i = 0; i < sentences.length; i++) {
+        currentChunk += sentences[i] + ' ';
+        if (i + 1 >= Math.round((chunkIndex + 1) * sentencesPerChunk) && chunkIndex < validAssets.length - 1) {
+          chunks.push(currentChunk.trim());
+          currentChunk = '';
+          chunkIndex++;
+        }
+      }
+      if (currentChunk.trim().length > 0) {
+        chunks.push(currentChunk.trim());
+      }
+      
+      const totalChars = chunks.reduce((acc, c) => acc + c.length, 0) || 1;
+      let accumulatedFrames = 0;
+      
+      durations = validAssets.map((_, index) => {
+        if (index === validAssets.length - 1) {
+          return durationInFrames - accumulatedFrames;
+        }
+        const chunkLength = chunks[index]?.length || (totalChars / validAssets.length);
+        const frames = Math.floor((chunkLength / totalChars) * durationInFrames);
+        accumulatedFrames += frames;
+        return frames;
+      });
+    } else {
+      // Fallback rata jika kalimat terlalu sedikit
+      const framesPerAsset = Math.floor(durationInFrames / validAssets.length);
+      durations = validAssets.map((_, index) => 
+        index === validAssets.length - 1 ? durationInFrames - (index * framesPerAsset) : framesPerAsset
+      );
+    }
+  }
 
   return (
     <AbsoluteFill style={{ backgroundColor: '#0f172a' }}>
       {validAssets.length > 0 ? (
         <Series>
           {validAssets.map((asset, index) => {
-            // Biarkan asset terakhir memakan sisa frame jika ada pembulatan
-            const duration = index === validAssets.length - 1 
-              ? durationInFrames - (index * framesPerAsset) 
-              : framesPerAsset;
+            const duration = durations[index];
 
             return (
               <Series.Sequence key={index} durationInFrames={duration}>
-                <ImageTransition assetUrl={asset.file_url} durationInFrames={duration} />
+                <MediaTransition asset={asset} durationInFrames={duration} />
               </Series.Sequence>
             );
           })}
@@ -84,24 +124,40 @@ export const VerticalVideo: React.FC<VerticalVideoProps> = ({ audioUrl, subtitle
   );
 };
 
-// Komponen helper untuk efek scale-in lambat ala B-Roll
-const ImageTransition: React.FC<{ assetUrl: string, durationInFrames: number }> = ({ assetUrl, durationInFrames }) => {
+// Komponen helper untuk efek transisi aset (Video atau Gambar)
+const MediaTransition: React.FC<{ asset: any, durationInFrames: number }> = ({ asset, durationInFrames }) => {
   const frame = useCurrentFrame();
   const scale = interpolate(frame, [0, durationInFrames], [1, 1.1], { extrapolateRight: 'clamp' });
   const opacity = interpolate(frame, [0, 15], [0, 0.6], { extrapolateRight: 'clamp' });
+  const isVideo = asset.type === 'video' || asset.file_url.endsWith('.mp4');
 
   return (
     <AbsoluteFill>
-      <Img 
-        src={assetUrl} 
-        style={{ 
-          width: '100%', 
-          height: '100%', 
-          objectFit: 'cover', 
-          opacity: opacity, // dark background opacity
-          transform: `scale(${scale})`
-        }} 
-      />
+      {isVideo ? (
+        <Video 
+          src={asset.file_url}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            opacity: opacity,
+            transform: `scale(${scale})`
+          }}
+          muted
+          loop
+        />
+      ) : (
+        <Img 
+          src={asset.file_url} 
+          style={{ 
+            width: '100%', 
+            height: '100%', 
+            objectFit: 'cover', 
+            opacity: opacity,
+            transform: `scale(${scale})`
+          }} 
+        />
+      )}
     </AbsoluteFill>
   );
 }
