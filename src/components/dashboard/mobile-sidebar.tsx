@@ -36,10 +36,10 @@ export function MobileSidebar({ businessId, businessName, userEmail, userRole }:
           </div>
           <div>
             <div className="font-black tracking-tight text-base text-white flex items-center gap-1.5">
-              VIMERO AI
+              VIMERO
             </div>
             <div className="text-[11px] text-muted-foreground font-medium">
-              Command Center
+              Personal Studio
             </div>
           </div>
         </div>
@@ -52,7 +52,7 @@ export function MobileSidebar({ businessId, businessName, userEmail, userRole }:
                 <Building2 className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Bisnis Aktif</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Workspace</p>
                 <p className="text-xs font-bold text-white truncate">{businessName}</p>
               </div>
             </div>

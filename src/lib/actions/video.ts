@@ -1,7 +1,8 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { generateVoiceoverEdgeTTS } from '@/lib/ai/audio-router'
+import { assertResourceInBusiness, requireBusinessMembership } from '@/lib/auth/business-access'
 import { revalidatePath } from 'next/cache'
 
 export async function generateAudioAction(
@@ -10,40 +11,43 @@ export async function generateAudioAction(
   text: string, 
   voicePersona: string
 ) {
-  const supabase = await createClient()
-
-  // 1. Validasi user
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error("Unauthorized")
+  const { supabase } = await requireBusinessMembership(businessId)
+  await assertResourceInBusiness(supabase, 'contents', contentId, businessId)
+  const adminClient = createAdminClient()
 
   try {
     // 2. Generate Audio via Edge TTS
     const { audioBuffer, subtitles } = await generateVoiceoverEdgeTTS(text, voicePersona)
     
     // 3. Upload ke Supabase Storage (bucket: 'media')
-    const fileName = `audio/${businessId}/${contentId}-${Date.now()}.mp3`
+    // Storage policy expects the business ID in the first path segment.
+    const fileName = `${businessId}/audio/${contentId}-${Date.now()}.mp3`
     
     const { error: uploadError } = await supabase
       .storage
       .from('media')
       .upload(fileName, audioBuffer, {
         contentType: 'audio/mpeg',
-        upsert: true
+        upsert: false
       })
       
     if (uploadError) throw uploadError
     
-    // Dapatkan Public URL
-    const { data: { publicUrl } } = supabase
+    // The media bucket is private, so return a temporary URL for playback/rendering.
+    const { data: signedUrlData, error: signedUrlError } = await adminClient
       .storage
       .from('media')
-      .getPublicUrl(fileName)
+      .createSignedUrl(fileName, 60 * 60)
+
+    if (signedUrlError || !signedUrlData?.signedUrl) {
+      throw signedUrlError || new Error('Gagal membuat URL audio')
+    }
       
     // 4. Update tabel contents
     const { error: updateError } = await supabase
       .from('contents')
       .update({
-        audio_url: publicUrl,
+        audio_url: signedUrlData.signedUrl,
         voice_persona: voicePersona,
         subtitle_data: subtitles
       })
@@ -53,9 +57,12 @@ export async function generateAudioAction(
     
     revalidatePath(`/dashboard/${businessId}/video`)
     
-    return { success: true, audioUrl: publicUrl, subtitles }
-  } catch (error: any) {
+    return { success: true, audioUrl: signedUrlData.signedUrl, subtitles }
+  } catch (error: unknown) {
     console.error("Audio generation error:", error)
-    return { success: false, error: error.message || "Failed to generate audio" }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to generate audio",
+    }
   }
 }

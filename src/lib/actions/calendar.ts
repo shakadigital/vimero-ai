@@ -1,11 +1,15 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { scheduleToBuffer, deleteFromBuffer } from '@/lib/integrations/buffer'
+import { requireBusinessMembership, assertResourceInBusiness, assertPlatform } from '@/lib/auth/business-access'
 
 export async function scheduleContent(businessId: string, contentId: string, scheduledAt: string, platform: string) {
-  const supabase = await createClient()
+  const { supabase } = await requireBusinessMembership(businessId)
+  await assertResourceInBusiness(supabase, 'contents', contentId, businessId)
+  assertPlatform(platform)
+  const parsedDate = new Date(scheduledAt)
+  if (Number.isNaN(parsedDate.getTime()) || parsedDate.getTime() <= Date.now()) throw new Error('Waktu jadwal tidak valid.')
 
   try {
     // Ambil data konten
@@ -13,6 +17,7 @@ export async function scheduleContent(businessId: string, contentId: string, sch
       .from('contents')
       .select('hook, body, cta, hashtags')
       .eq('id', contentId)
+      .eq('business_id', businessId)
       .single()
 
     if (fetchError || !content) throw new Error("Gagal mengambil data konten")
@@ -49,7 +54,8 @@ export async function scheduleContent(businessId: string, contentId: string, sch
 }
 
 export async function unscheduleContent(businessId: string, contentId: string) {
-  const supabase = await createClient()
+  const { supabase } = await requireBusinessMembership(businessId)
+  await assertResourceInBusiness(supabase, 'contents', contentId, businessId)
 
   try {
     // Ambil data konten untuk mendapatkan buffer_update_id
@@ -57,6 +63,7 @@ export async function unscheduleContent(businessId: string, contentId: string) {
       .from('contents')
       .select('buffer_update_id')
       .eq('id', contentId)
+      .eq('business_id', businessId)
       .single()
 
     if (fetchError) throw new Error("Gagal mengambil data konten")

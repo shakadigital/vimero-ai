@@ -42,10 +42,9 @@ export function SidebarNav({ businessId }: SidebarNavProps) {
   ]
 
   const businessNavItems: NavItem[] = [
-    { href: '/goals', label: 'Target & Goals', icon: Target },
     { href: '/products', label: 'Produk & Layanan', icon: Package },
     { href: '/settings/brand-kit', label: 'Brand Kit', icon: Palette },
-    { href: '/settings/profile', label: 'Profil Bisnis', icon: Building2 },
+    { href: '/settings/profile', label: 'Profil Saya', icon: Building2 },
   ]
 
   const isActive = (itemHref: string) => {
@@ -101,7 +100,7 @@ export function SidebarNav({ businessId }: SidebarNavProps) {
 
       <div>
         <div className="px-3 pb-2 text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/70">
-          Manajemen Bisnis
+          Pengaturan Pribadi
         </div>
         <nav className="flex flex-col gap-1">
           {businessNavItems.map((item) => {

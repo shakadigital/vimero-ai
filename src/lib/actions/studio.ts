@@ -1,15 +1,19 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
-import { runCreativeDirector } from '@/lib/ai/agents/director'
+import { runCreativeDirector, runVideoDirector } from '@/lib/ai/agents/director'
 import { generateImageCloudflare } from '@/lib/ai/image-router'
+import { randomUUID } from 'node:crypto'
+import { requireBusinessMembership, assertResourceInBusiness, assertText } from '@/lib/auth/business-access'
 
 export async function generateCreativeImage(businessId: string, contentId: string | null, brief: string) {
-  const userClient = await createClient()
-  const { data: { user } } = await userClient.auth.getUser()
-  if (!user) throw new Error("Akses ditolak: pengguna belum login.")
+  const { supabase } = await requireBusinessMembership(businessId)
+  assertText(brief, 'Brief', 4_000)
+
+  if (contentId) {
+    await assertResourceInBusiness(supabase, 'contents', contentId, businessId)
+  }
 
   const adminClient = createAdminClient()
 
@@ -21,38 +25,42 @@ export async function generateCreativeImage(businessId: string, contentId: strin
     const imageBuffer = await generateImageCloudflare(directorOutput.image_prompt)
     
     // 3. Upload to Supabase Storage (media bucket) using admin client
-    const fileName = `${businessId}/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`
+    const fileName = `${businessId}/${Date.now()}-${randomUUID()}.jpg`
     const { error: uploadError } = await adminClient.storage
       .from('media')
       .upload(fileName, imageBuffer, { contentType: 'image/jpeg', upsert: true })
       
-    if (uploadError) {
-      console.warn(`Supabase Storage upload warning: ${uploadError.message}. Using direct base64/fallback...`)
-    }
-    
-    // Get public URL
-    const { data: publicUrlData } = adminClient.storage.from('media').getPublicUrl(fileName)
-    const publicUrl = publicUrlData.publicUrl
+    if (uploadError) throw uploadError
+
+    // Media bucket is private; issue a short-lived URL instead of exposing the object publicly.
+    const { data: signedUrlData, error: signedUrlError } = await adminClient.storage
+      .from('media')
+      .createSignedUrl(fileName, 60 * 60)
+    if (signedUrlError || !signedUrlData?.signedUrl) throw signedUrlError || new Error('Gagal membuat URL media')
+    const mediaUrl = signedUrlData.signedUrl
 
     // 4. Save to media_assets
-    await adminClient.from('media_assets').insert({
+    const { error: assetError } = await adminClient.from('media_assets').insert({
       business_id: businessId,
-      file_url: publicUrl,
+      file_url: mediaUrl,
       type: 'generated_image'
     })
     
+    if (assetError) throw assetError
+
     // 5. Save to generation_history
-    await adminClient.from('generation_history').insert({
+    const { error: historyError } = await adminClient.from('generation_history').insert({
       business_id: businessId,
       content_id: contentId || null,
       prompt: directorOutput.image_prompt,
       aspect_ratio: '1:1',
       model: '@cf/stabilityai/stable-diffusion-xl-base-1.0',
-      image_url: publicUrl
+      image_url: mediaUrl
     })
+    if (historyError) throw historyError
 
     revalidatePath(`/dashboard/${businessId}/studio`)
-    return { success: true, imageUrl: publicUrl, prompt: directorOutput.image_prompt }
+    return { success: true, imageUrl: mediaUrl, prompt: directorOutput.image_prompt }
 
   } catch (error: any) {
     console.error('generateCreativeImage Error:', error)
@@ -60,46 +68,71 @@ export async function generateCreativeImage(businessId: string, contentId: strin
   }
 }
 
-export async function deleteCreativeImage(businessId: string, imageId: string, imageUrl: string) {
-  const userClient = await createClient()
-  const { data: { user } } = await userClient.auth.getUser()
-  if (!user) throw new Error("Akses ditolak: pengguna belum login.")
-
+export async function deleteCreativeImage(businessId: string, imageId: string, _imageUrl: string) {
+  void _imageUrl
+  const { supabase } = await requireBusinessMembership(businessId)
   const adminClient = createAdminClient()
 
   try {
-    // 1. Ekstrak nama file dari URL (asumsi URL Supabase public)
-    const urlParts = imageUrl.split('/')
-    const fileName = urlParts.slice(urlParts.length - 2).join('/') // Mengambil businessId/nama-file.jpg
+    const { data: history, error: historyError } = await supabase
+      .from('generation_history')
+      .select('image_url')
+      .eq('id', imageId)
+      .eq('business_id', businessId)
+      .single()
+    if (historyError || !history) throw new Error('Asset tidak ditemukan atau akses ditolak.')
 
-    // 2. Hapus file fisik dari Storage
-    if (fileName && fileName.includes(businessId)) {
-      await adminClient.storage.from('media').remove([fileName])
+    const imageUrl = history.image_url || ''
+    let fileName = ''
+    try {
+      const url = new URL(imageUrl)
+      const marker = url.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/media\/(.+)$/)
+      fileName = marker ? decodeURIComponent(marker[1]) : ''
+    } catch {
+      fileName = ''
     }
 
-    // 3. Hapus dari database (generation_history dan media_assets)
-    await adminClient.from('generation_history').delete().eq('id', imageId)
-    await adminClient.from('media_assets').delete().eq('file_url', imageUrl)
+    if (fileName.startsWith(`${businessId}/`)) {
+      const { error: storageError } = await adminClient.storage.from('media').remove([fileName])
+      if (storageError) throw storageError
+    }
+
+    const { error: historyDeleteError } = await adminClient
+      .from('generation_history')
+      .delete()
+      .eq('id', imageId)
+      .eq('business_id', businessId)
+    if (historyDeleteError) throw historyDeleteError
+
+    const { error: assetDeleteError } = await adminClient
+      .from('media_assets')
+      .delete()
+      .eq('file_url', imageUrl)
+      .eq('business_id', businessId)
+    if (assetDeleteError) throw assetDeleteError
 
     revalidatePath(`/dashboard/${businessId}/studio`)
     return { success: true }
   } catch (error: any) {
     console.error('deleteCreativeImage Error:', error)
-    throw new Error(error.message)
+    throw new Error('Asset gagal dihapus.')
   }
 }
 
 export async function generateStockVideo(businessId: string, contentId: string | null, brief: string) {
-  const userClient = await createClient()
-  const { data: { user } } = await userClient.auth.getUser()
-  if (!user) throw new Error("Akses ditolak: pengguna belum login.")
+  const { supabase } = await requireBusinessMembership(businessId)
+  assertText(brief, 'Brief', 4_000)
+
+  if (contentId) {
+    await assertResourceInBusiness(supabase, 'contents', contentId, businessId)
+  }
 
   const adminClient = createAdminClient()
 
   try {
     // 1. Dapatkan keyword spesifik dari AI Director
     // NOTE: Harus import runVideoDirector di atas
-    const directorOutput = await require('@/lib/ai/agents/director').runVideoDirector(businessId, brief)
+    const directorOutput = await runVideoDirector(businessId, brief)
     const queries = directorOutput?.queries || ['business', 'working', 'success']
 
     let videoUrls: string[] = []
@@ -144,21 +177,22 @@ export async function generateStockVideo(businessId: string, contentId: string |
 
     // 4. Hapus aset lama untuk konten ini (opsional tapi disarankan agar rapi)
     if (contentId) {
-      await adminClient.from('media_assets').delete().eq('content_id', contentId).eq('type', 'video')
+      const { error } = await adminClient.from('media_assets').delete().eq('business_id', businessId).eq('type', 'video')
+      if (error) throw error
     }
 
     // 5. Simpan 3 video ke media_assets
     for (const url of videoUrls) {
-      await adminClient.from('media_assets').insert({
+      const { error } = await adminClient.from('media_assets').insert({
         business_id: businessId,
-        content_id: contentId, // kaitkan ke konten spesifik
         file_url: url,
-        type: 'video' 
+        type: 'video'
       })
+      if (error) throw error
     }
     
     // 6. Simpan ke generation_history (satu log representatif)
-    await adminClient.from('generation_history').insert({
+    const { error: historyError } = await adminClient.from('generation_history').insert({
       business_id: businessId,
       content_id: contentId || null,
       prompt: `Stock video queries: ${queries.join(', ')}`,
@@ -166,6 +200,7 @@ export async function generateStockVideo(businessId: string, contentId: string |
       model: 'pexels/stock',
       image_url: videoUrls[0]
     })
+    if (historyError) throw historyError
 
     revalidatePath(`/dashboard/${businessId}/studio`)
     return { success: true, imageUrls: videoUrls, prompt: queries.join(', '), type: 'video' }

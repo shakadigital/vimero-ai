@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { cache, Suspense } from 'react'
 import { SidebarNav } from '@/components/dashboard/sidebar-nav'
 import { Sparkles, Building2, LogOut, ArrowLeftRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import pkg from '../../../../package.json'
 
 const getBusinessLayoutData = cache(async (businessId: string) => {
@@ -49,7 +48,7 @@ export default async function BusinessLayout({
           <div className="h-8 w-8 rounded-lg bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-sm">
             <Sparkles className="h-4 w-4" />
           </div>
-          <div className="font-bold text-white text-sm">VIMERO AI</div>
+          <div className="font-bold text-white text-sm">VIMERO</div>
         </div>
         <MobileSidebar 
           businessId={businessId} 
@@ -69,10 +68,10 @@ export default async function BusinessLayout({
             </div>
             <div>
               <div className="font-black tracking-tight text-base text-white flex items-center gap-1.5">
-                VIMERO AI
+                VIMERO
               </div>
               <div className="text-[11px] text-muted-foreground font-medium">
-                Command Center
+                Personal Studio
               </div>
             </div>
           </div>
@@ -86,7 +85,7 @@ export default async function BusinessLayout({
                 <Building2 className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Bisnis Aktif</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Workspace</p>
                 <p className="text-xs font-bold text-white truncate">{businessName}</p>
               </div>
             </div>

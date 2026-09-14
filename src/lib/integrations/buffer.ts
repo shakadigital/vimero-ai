@@ -37,12 +37,13 @@ export async function getBufferProfiles(token: string): Promise<BufferProfile[]>
   return res.json()
 }
 
-export async function publishToBuffer(text: string, platform: string, imageUrl?: string): Promise<BufferPublishResult> {
+export async function publishToBuffer(text: string, _platform: string, imageUrl?: string): Promise<BufferPublishResult> {
+  void imageUrl
   const token = process.env.BUFFER_API_KEY
   
   // 1. Jika tidak ada token, gunakan mode simulasi yang mulus
   if (!token || token === 'your-buffer-key' || token.trim() === '') {
-    console.log(`[SIMULATED DISPATCH] Mempublikasikan konten ke kanal ${platform}...`)
+    console.log(`[SIMULATED DISPATCH] Mempublikasikan konten ke kanal ${_platform}...`)
     await new Promise(resolve => setTimeout(resolve, 800))
     return {
       success: true,
@@ -53,7 +54,7 @@ export async function publishToBuffer(text: string, platform: string, imageUrl?:
 
   // 2. Jika token tersedia, coba hubungi Buffer API
   try {
-    console.log(`[BUFFER PUBLISHING] Mengirim konten ke ${platform} via Buffer API...`)
+    console.log(`[BUFFER PUBLISHING] Mengirim konten ke ${_platform} via Buffer API...`)
     
     const response = await fetch('https://api.bufferapp.com/1/updates/create.json', {
       method: 'POST',
@@ -75,24 +76,19 @@ export async function publishToBuffer(text: string, platform: string, imageUrl?:
       }
     }
 
-    // Buffer REST API v1 mengembalikan 401 untuk token publik (karena Buffer memigrasi ke GraphQL di 2026/2027).
-    // Agar siklus publikasi pengguna tidak terhenti dengan error 500,
-    // sistem mencatat log dan menyelesaikan distribusi via automated dispatcher.
     const errText = await response.text()
-    console.warn(`Buffer API notice (${response.status}): ${errText}. Menyelesaikan publikasi via smart dispatcher.`)
+    console.warn(`Buffer API error (${response.status}): ${errText}`)
 
     return {
-      success: true,
-      external_id: `buf-live-${Date.now()}`,
-      isSimulated: true
+      success: false,
+      error: `Buffer menolak publikasi (HTTP ${response.status})`
     }
 
   } catch (err: any) {
-    console.warn('Buffer network exception, menyelesaikan distribusi otomatis:', err.message)
+    console.warn('Buffer network exception:', err.message)
     return {
-      success: true,
-      external_id: `buf-fallback-${Date.now()}`,
-      isSimulated: true
+      success: false,
+      error: 'Buffer tidak dapat dihubungi'
     }
   }
 }
@@ -113,10 +109,13 @@ export async function scheduleToBuffer(text: string, platform: string, scheduled
   try {
     const profiles = await getBufferProfiles(token)
     const targetService = platform.toLowerCase()
-    let matchedProfile = profiles.find(p => p.service.toLowerCase() === targetService)
+    const matchedProfile = profiles.find(p => p.service.toLowerCase() === targetService)
     
     if (!matchedProfile) {
-      matchedProfile = profiles[0] // Fallback ke profil pertama jika tidak match persis
+      return {
+        success: false,
+        error: `Profil Buffer untuk platform ${platform} tidak ditemukan`
+      }
     }
 
     const unixTimestamp = Math.floor(new Date(scheduledAt).getTime() / 1000)
@@ -143,20 +142,18 @@ export async function scheduleToBuffer(text: string, platform: string, scheduled
     }
 
     const errText = await response.text()
-    console.warn(`Buffer API notice (${response.status}): ${errText}. Menyelesaikan penjadwalan via smart dispatcher.`)
+    console.warn(`Buffer schedule error (${response.status}): ${errText}`)
 
     return {
-      success: true,
-      external_id: `buf-live-sched-${Date.now()}`,
-      isSimulated: true
+      success: false,
+      error: `Buffer menolak penjadwalan (HTTP ${response.status})`
     }
 
   } catch (err: any) {
-    console.warn('Buffer schedule network exception, menyelesaikan distribusi otomatis:', err.message)
+    console.warn('Buffer schedule network exception:', err.message)
     return {
-      success: true,
-      external_id: `buf-fallback-sched-${Date.now()}`,
-      isSimulated: true
+      success: false,
+      error: 'Buffer tidak dapat dihubungi'
     }
   }
 }

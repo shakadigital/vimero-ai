@@ -1,14 +1,22 @@
 import { PageContainer } from '@/components/dashboard/page-container'
+import { createClient } from '@/lib/supabase/server'
+import { ProductsClient } from './products-client'
 
-export default function ProductsPage() {
+export default async function ProductsPage({ params }: { params: Promise<{ businessId: string }> }) {
+  const { businessId } = await params
+  const supabase = await createClient()
+  const { data: products } = await supabase
+    .from('products_services')
+    .select('id, type, name, description, price_info, url')
+    .eq('business_id', businessId)
+    .order('created_at', { ascending: false })
+
   return (
     <PageContainer
-      title="Produk & Layanan"
-      description="Kelola daftar produk dan layanan bisnis Anda."
+      title="Produk & Penawaran Saya"
+      description="Simpan produk atau layanan agar AI memahami apa yang Anda tawarkan."
     >
-      <div className="rounded-md border p-8 text-center text-muted-foreground bg-card">
-        Belum ada produk yang ditambahkan.
-      </div>
+      <ProductsClient businessId={businessId} initialProducts={products || []} />
     </PageContainer>
   )
 }

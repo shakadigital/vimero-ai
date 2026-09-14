@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { scheduleContent, unscheduleContent } from '@/lib/actions/content'
+import { deleteContent, scheduleContent, unscheduleContent } from '@/lib/actions/content'
 import { toast } from 'sonner'
-import { Calendar, Clock, Loader2, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { Calendar, Clock, Loader2, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react'
 
 export function CalendarCard({ businessId, content, isScheduled = false }: { businessId: string, content: any, isScheduled?: boolean }) {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -38,6 +38,20 @@ export function CalendarCard({ businessId, content, isScheduled = false }: { bus
       toast.success('Jadwal dibatalkan, dikembalikan ke antrean.')
     } catch (error: any) {
       toast.error('Gagal membatalkan jadwal: ' + error.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!window.confirm('Hapus naskah ini dari antrean? Jika berasal dari Idea Bank, idenya akan dikembalikan ke antrean.')) return
+
+    setIsLoading(true)
+    try {
+      await deleteContent(businessId, content.id)
+      toast.success('Naskah berhasil dihapus dari antrean.')
+    } catch (error: any) {
+      toast.error('Gagal menghapus naskah: ' + error.message)
     } finally {
       setIsLoading(false)
     }
@@ -117,6 +131,16 @@ export function CalendarCard({ businessId, content, isScheduled = false }: { bus
         </div>
       ) : (
         <div className="space-y-3 pt-2 border-t">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 border-red-200"
+            onClick={handleDelete}
+            disabled={isLoading}
+          >
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Trash2 className="w-4 h-4 mr-2" />}
+            Hapus dari Antrean
+          </Button>
           <div>
             <label className="text-[11px] sm:text-xs font-semibold text-muted-foreground mb-1 block">Platform Tujuan:</label>
             <select 

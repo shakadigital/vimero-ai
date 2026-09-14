@@ -1,9 +1,55 @@
 export async function generateImageCloudflare(prompt: string): Promise<Buffer> {
+  const paidAiEnabled = process.env.ENABLE_PAID_AI === 'true'
+  const ideogramApiKey = process.env.IDEOGRAM_API_KEY || process.env.idiogram_api_key
+
+  // Ideogram is preferred for branded layouts and text-aware image generation.
+  if (paidAiEnabled && ideogramApiKey) {
+    try {
+      const response = await fetch(
+        process.env.IDEOGRAM_API_URL || 'https://api.ideogram.ai/v1/ideogram-v3/generate',
+        {
+          method: 'POST',
+          headers: {
+            'Api-Key': ideogramApiKey
+          },
+          body: (() => {
+            const formData = new FormData()
+            formData.append('image_request', JSON.stringify({
+              prompt: prompt.trim(),
+              aspect_ratio: 'ASPECT_1_1',
+              model: 'V_3',
+              magic_prompt_option: 'AUTO',
+              num_images: 1
+            }))
+            return formData
+          })()
+        }
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        const imageUrl = data?.data?.[0]?.url
+        if (imageUrl) {
+          const imageResponse = await fetch(imageUrl)
+          if (imageResponse.ok) {
+            console.log('Berhasil generate gambar via Ideogram!')
+            return Buffer.from(await imageResponse.arrayBuffer())
+          }
+        }
+        console.warn('Ideogram mengembalikan respons tanpa URL gambar. Beralih ke provider berikutnya...')
+      } else {
+        console.warn(`Ideogram gagal (${response.status}). Beralih ke provider berikutnya...`)
+      }
+    } catch (ideogramError) {
+      console.warn('Gagal memanggil Ideogram. Beralih ke provider berikutnya...', ideogramError)
+    }
+  }
+
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
   const apiToken = process.env.CLOUDFLARE_API_TOKEN
   
   // 1. Coba Cloudflare Workers AI jika kredensial tersedia
-  if (accountId && apiToken) {
+  if (paidAiEnabled && accountId && apiToken) {
     try {
       console.log('Mencoba generate gambar via Cloudflare Workers AI...')
       const response = await fetch(
@@ -26,8 +72,9 @@ export async function generateImageCloudflare(prompt: string): Promise<Buffer> {
         const errText = await response.text()
         console.warn(`Cloudflare AI gagal (${response.status}): ${errText}. Beralih ke fallback generator...`)
       }
-    } catch (cfError: any) {
-      console.warn('Gagal memanggil Cloudflare Workers AI:', cfError.message, '. Beralih ke fallback generator...')
+    } catch (cfError: unknown) {
+      const message = cfError instanceof Error ? cfError.message : String(cfError)
+      console.warn('Gagal memanggil Cloudflare Workers AI:', message, '. Beralih ke fallback generator...')
     }
   }
 

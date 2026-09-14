@@ -4,13 +4,13 @@ import { useState, useEffect } from 'react'
 import { Player } from '@remotion/player'
 import { VerticalVideo } from '@/remotion/VerticalVideo'
 import { Button } from '@/components/ui/button'
-import { Download, Loader2, PlayCircle, ImagePlus, Play, Video as VideoIcon } from 'lucide-react'
+import { Download, Loader2, PlayCircle, Sparkles } from 'lucide-react'
 import { renderVideoAction } from '@/lib/actions/render-video'
-import { generateCreativeImage, generateStockVideo } from '@/lib/actions/studio'
+import { generateStockVideo } from '@/lib/actions/studio'
+import { generateAudioAction } from '@/lib/actions/video'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { Progress } from '@/components/ui/progress'
-import puter from '@heyputer/puter.js'
 
 interface VideoPlayerProps {
   businessId?: string
@@ -22,13 +22,16 @@ interface VideoPlayerProps {
 
 export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, content }: VideoPlayerProps) {
   const [isRendering, setIsRendering] = useState(false)
-  const [isGeneratingVisual, setIsGeneratingVisual] = useState(false)
-  const [isGeneratingStock, setIsGeneratingStock] = useState(false)
+  const [isAutoGenerating, setIsAutoGenerating] = useState(false)
   const [renderProgress, setRenderProgress] = useState(0)
   const [renderStatus, setRenderStatus] = useState<string | null>(null)
   const [renderUrl, setRenderUrl] = useState<string | null>(null)
   const [activeRenderId, setActiveRenderId] = useState<string | null>(null)
-  const [tempMedia, setTempMedia] = useState<any>(null)
+  const [generatedAudioUrl, setGeneratedAudioUrl] = useState<string | null>(null)
+  const [generatedSubtitleData, setGeneratedSubtitleData] = useState<unknown[] | null>(null)
+
+  const currentAudioUrl = generatedAudioUrl || audioUrl
+  const currentSubtitleData = generatedSubtitleData || subtitleData
 
   const supabase = createClient()
 
@@ -37,7 +40,7 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
     
     if (activeRenderId && isRendering) {
       interval = setInterval(async () => {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('video_renders')
           .select('status, progress, file_url, error_message')
           .eq('id', activeRenderId)
@@ -67,66 +70,12 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
   }, [activeRenderId, isRendering, supabase])
 
   // Jika ada data subtitle, hitung durasi dari kata terakhir (Edge TTS format)
-  const lastSubtitle = subtitleData && subtitleData.length > 0 ? subtitleData[subtitleData.length - 1] : null;
+  const lastSubtitle = currentSubtitleData && currentSubtitleData.length > 0 ? currentSubtitleData[currentSubtitleData.length - 1] : null;
   const audioDurationMs = lastSubtitle ? (lastSubtitle.offset + lastSubtitle.duration) / 10000 : null;
   
   // Jika tidak ada audio, beri durasi default 300 frame (10 detik)
   // Berikan padding 1 detik (30 frame) setelah kata terakhir agar video tidak langsung terpotong
-  const durationInFrames = audioDurationMs ? Math.ceil((audioDurationMs / 1000) * 30) + 30 : (audioUrl ? 900 : 300);
-
-  const handleGenerateVisual = async () => {
-    if (!content || !businessId) {
-      toast.error("Pilih naskah terlebih dahulu!")
-      return
-    }
-    const textBrief = `${content.hook || ''} ${content.body || ''} ${content.cta || ''}`
-    if (textBrief.trim().length < 10) {
-      toast.error("Naskah kosong atau terlalu pendek!")
-      return
-    }
-
-    setIsGeneratingVisual(true)
-    toast.info("AI sedang menggambar visual... (Butuh 10-15 detik)")
-    try {
-      const res = await generateCreativeImage(businessId, content.id, textBrief)
-      if (res.success) {
-        toast.success("Visual berhasil digambar!")
-      }
-    } catch(err: any) {
-      toast.error(err.message || "Gagal membuat gambar")
-    } finally {
-      setIsGeneratingVisual(false)
-    }
-  }
-
-  const handleStockVideo = async () => {
-    if (!content || !businessId) {
-      toast.error("Pilih naskah terlebih dahulu!")
-      return
-    }
-    const textBrief = `${content.hook || ''} ${content.body || ''} ${content.cta || ''}`
-    if (textBrief.trim().length < 10) {
-      toast.error("Naskah kosong atau terlalu pendek!")
-      return
-    }
-
-    setIsGeneratingStock(true)
-    toast.info("Mencari video stok yang sesuai... (Butuh beberapa detik)")
-    try {
-      const res = await generateStockVideo(businessId, content.id, textBrief)
-      if (res.success && res.imageUrls) {
-        // Karena ada revalidatePath di backend, aset media akan direfresh 
-        // secara otomatis saat komponen server dirender ulang.
-        // Kita bisa langsung membuang tempMedia dan rely on the revalidation
-        setTempMedia(null)
-        toast.success("Video stok berhasil ditemukan!")
-      }
-    } catch(err: any) {
-      toast.error(err.message || "Gagal mencari video stok")
-    } finally {
-      setIsGeneratingStock(false)
-    }
-  }
+  const durationInFrames = audioDurationMs ? Math.ceil((audioDurationMs / 1000) * 30) + 30 : (currentAudioUrl ? 900 : 300);
 
   const handleRender = async () => {
     if (!content?.title) {
@@ -142,10 +91,10 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
     try {
       const fullText = content ? `${content.hook || ''} ${content.body || ''} ${content.cta || ''}` : '';
       const res = await renderVideoAction(
-        audioUrl || null, 
+        currentAudioUrl || null, 
         content.title, 
         mediaAssets || [], 
-        subtitleData || null, 
+        currentSubtitleData || null, 
         fullText,
         businessId,
         content.id,
@@ -170,6 +119,75 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
     }
   }
 
+  const handleAutoGenerate = async () => {
+    if (!content || !businessId) {
+      toast.error('Pilih naskah terlebih dahulu!')
+      return
+    }
+
+    const fullText = `${content.hook || ''} ${content.body || ''} ${content.cta || ''}`.trim()
+    if (fullText.length < 10) {
+      toast.error('Naskah kosong atau terlalu pendek!')
+      return
+    }
+
+    setIsAutoGenerating(true)
+    setIsRendering(true)
+    setRenderProgress(0)
+    setRenderStatus('pending')
+
+    try {
+      toast.info('Membuat voiceover AI...')
+      const audioResult = await generateAudioAction(
+        businessId,
+        content.id,
+        fullText,
+        'dimas'
+      )
+      if (!audioResult.success || !audioResult.audioUrl) {
+        throw new Error(audioResult.error || 'Voiceover gagal dibuat')
+      }
+
+      setGeneratedAudioUrl(audioResult.audioUrl)
+      setGeneratedSubtitleData(audioResult.subtitles)
+
+      toast.info('Mencari B-Roll yang sesuai...')
+      const stockResult = await generateStockVideo(businessId, content.id, fullText)
+      const generatedAssets = (stockResult.imageUrls || []).map((fileUrl: string) => ({
+        file_url: fileUrl,
+        type: 'video'
+      }))
+
+      toast.info('Mengirim video ke antrean render...')
+      const renderResult = await renderVideoAction(
+        audioResult.audioUrl,
+        content.title,
+        generatedAssets,
+        audioResult.subtitles,
+        fullText,
+        businessId,
+        content.id,
+        {
+          hook: content.hook?.length || 0,
+          body: content.body?.length || 0,
+          cta: content.cta?.length || 0
+        }
+      )
+
+      if (!renderResult?.success || !renderResult.renderId) {
+        throw new Error(renderResult?.error || 'Render video gagal dimulai')
+      }
+
+      setActiveRenderId(renderResult.renderId)
+      toast.success('Video sedang dibuat. Progres akan diperbarui otomatis.')
+    } catch (error: any) {
+      setIsRendering(false)
+      toast.error(error.message || 'Gagal membuat video otomatis')
+    } finally {
+      setIsAutoGenerating(false)
+    }
+  }
+
 
 
   return (
@@ -178,9 +196,9 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
         <Player
           component={VerticalVideo}
           inputProps={{
-            audioUrl,
-            subtitleData,
-            mediaAssets: tempMedia ? [...(mediaAssets || []), tempMedia] : (mediaAssets || []),
+            audioUrl: currentAudioUrl,
+            subtitleData: currentSubtitleData,
+            mediaAssets: mediaAssets || [],
             title: content?.title,
             fullText: content ? `${content.hook || ''} ${content.body || ''} ${content.cta || ''}` : '',
             contentSegments: content ? {
@@ -218,45 +236,26 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
         ) : (
           <div className="flex flex-col gap-3">
             <Button 
-              className="w-full gap-2 font-semibold border-primary/50 hover:bg-primary/10 transition-all hover:-translate-y-0.5" 
-              variant="outline"
-              onClick={handleGenerateVisual} 
-              disabled={isGeneratingVisual || !content}
+              className="w-full gap-2 font-semibold bg-primary text-primary-foreground shadow-[0_0_15px_rgba(124,58,237,0.3)] transition-all hover:bg-primary/90 hover:shadow-[0_0_25px_rgba(124,58,237,0.5)] hover:-translate-y-0.5" 
+              onClick={handleAutoGenerate}
+              disabled={isAutoGenerating || isRendering || !content}
             >
-              {isGeneratingVisual ? (
+              {isAutoGenerating ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Menggambar Visual AI...
+                  Membuat Video Otomatis...
                 </>
               ) : (
                 <>
-                  <ImagePlus className="h-4 w-4" />
-                  Buat Visual Latar Belakang
-                </>
-              )}
-            </Button>
-            <Button 
-              className="w-full gap-2 font-semibold border-primary/50 hover:bg-primary/10 transition-all hover:-translate-y-0.5" 
-              variant="outline"
-              onClick={handleStockVideo} 
-              disabled={isGeneratingStock || !content}
-            >
-              {isGeneratingStock ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Mencari B-Roll...
-                </>
-              ) : (
-                <>
-                  <VideoIcon className="h-4 w-4" />
-                  Cari Video B-Roll (Stok)
+                  <Sparkles className="h-4 w-4" />
+                  Buat Video Otomatis
                 </>
               )}
             </Button>
             <Button 
               className="w-full gap-2 font-semibold shadow-[0_0_15px_rgba(124,58,237,0.3)] transition-all hover:shadow-[0_0_25px_rgba(124,58,237,0.5)] hover:-translate-y-0.5" 
               onClick={handleRender} 
-              disabled={isRendering || isGeneratingVisual || !content}
+              disabled={isRendering || isAutoGenerating || !content}
             >
               {isRendering ? (
                 <>

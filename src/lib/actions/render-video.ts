@@ -4,15 +4,30 @@ import path from 'path'
 import fs from 'fs'
 import { spawn } from 'child_process'
 import { createClient } from '@/lib/supabase/server'
+import { requireBusinessMembership } from '@/lib/auth/business-access'
+import { revalidatePath } from 'next/cache'
 
 // Regex untuk menangkap progres dari log Remotion (misal: "Rendering frames... 150/300")
 const PROGRESS_REGEX = /([0-9]+)\/([0-9]+)/
 
+export async function deleteVideoRenderAction(businessId: string, renderId: string) {
+  const { supabase } = await requireBusinessMembership(businessId)
+  const { error } = await supabase
+    .from('video_renders')
+    .delete()
+    .eq('id', renderId)
+    .eq('business_id', businessId)
+
+  if (error) throw new Error(error.message)
+  revalidatePath(`/dashboard/${businessId}`)
+  return { success: true }
+}
+
 export async function renderVideoAction(
   audioUrl: string | null, 
   title: string, 
-  mediaAssets: any[], 
-  subtitleData?: any, 
+  mediaAssets: unknown[], 
+  subtitleData?: unknown, 
   fullText?: string,
   businessId?: string,
   contentId?: string,
@@ -52,7 +67,8 @@ export async function renderVideoAction(
     
     const props = JSON.stringify({ audioUrl, title, mediaAssets, subtitleData, fullText, contentSegments })
 
-    const lastSubtitle = subtitleData && subtitleData.length > 0 ? subtitleData[subtitleData.length - 1] : null;
+    const subtitles = Array.isArray(subtitleData) ? subtitleData as Array<{ offset: number, duration: number }> : []
+    const lastSubtitle = subtitles.length > 0 ? subtitles[subtitles.length - 1] : null;
     const audioDurationMs = lastSubtitle ? (lastSubtitle.offset + lastSubtitle.duration) / 10000 : null;
     const durationInFrames = audioDurationMs ? Math.ceil((audioDurationMs / 1000) * 30) + 30 : (audioUrl ? 900 : 300);
 
@@ -99,7 +115,7 @@ export async function renderVideoAction(
     });
 
     child.on('close', async (code) => {
-      try { fs.unlinkSync(propsPath) } catch(e) {}
+      try { fs.unlinkSync(propsPath) } catch {}
       
       if (code === 0) {
         console.log("Render completed:", outputPath)
@@ -120,7 +136,7 @@ export async function renderVideoAction(
 
     child.on('error', async (err) => {
       console.error("Failed to start child process.", err);
-      try { fs.unlinkSync(propsPath) } catch(e) {}
+      try { fs.unlinkSync(propsPath) } catch {}
       if (renderId) {
         await supabase.from('video_renders')
           .update({ status: 'failed', error_message: err.message })
@@ -130,8 +146,9 @@ export async function renderVideoAction(
 
     // Langsung return ke client, tidak menunggu child process selesai!
     return { success: true, message: "Proses render dimulai di latar belakang", renderId }
-  } catch (error: any) {
-    console.error("Render initiation error:", error)
-    return { success: false, error: error.message }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error("Render initiation error:", message)
+    return { success: false, error: message }
   }
 }

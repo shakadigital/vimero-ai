@@ -4,6 +4,7 @@ import { PerformanceChart } from '@/components/dashboard/performance-chart'
 import { RecentActivity } from '@/components/dashboard/recent-activity'
 import { GoalsOverview } from '@/components/dashboard/goals-overview'
 import { ContentStatus } from '@/components/dashboard/content-status'
+import { VideoRenderOverview } from '@/components/dashboard/video-render-overview'
 import { createClient } from '@/lib/supabase/server'
 import { PageContainer } from '@/components/dashboard/page-container'
 
@@ -11,9 +12,15 @@ export default async function BusinessIndexPage({ params }: { params: Promise<{ 
   const { businessId } = await params
   const supabase = await createClient()
 
-  const [businessResult, userResult] = await Promise.all([
+  const [businessResult, userResult, videoRendersResult] = await Promise.all([
     supabase.from('businesses').select('name, industry').eq('id', businessId).single(),
-    supabase.auth.getUser()
+    supabase.auth.getUser(),
+    supabase
+      .from('video_renders')
+      .select('id, content_id, status, progress, file_url, error_message, created_at, contents(title)')
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: false })
+      .limit(6)
   ])
 
   const business = businessResult.data
@@ -56,6 +63,14 @@ export default async function BusinessIndexPage({ params }: { params: Promise<{ 
       }>
         <KpiCards businessId={businessId} />
       </Suspense>
+
+      <VideoRenderOverview
+        businessId={businessId}
+        initialRenders={(videoRendersResult.data || []).map((render) => ({
+          ...render,
+          content: Array.isArray(render.contents) ? render.contents[0] || null : render.contents
+        }))}
+      />
 
       {/* Row 2: Performance Chart (Left 8 cols) & Recent Activity (Right 4 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">

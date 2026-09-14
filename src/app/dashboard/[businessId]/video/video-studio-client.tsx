@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { startTransition, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { AudioGenerator } from '@/components/video/audio-generator'
 import { VideoPlayer } from '@/components/video/video-player'
 import { Headphones, Video } from 'lucide-react'
 
 export function VideoStudioClient({ businessId, contents, mediaAssets, generationHistory = [] }: any) {
+  const searchParams = useSearchParams()
   const [activeContentId, setActiveContentId] = useState<string>('')
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [subtitleData, setSubtitleData] = useState<any>(null)
@@ -20,6 +22,22 @@ export function VideoStudioClient({ businessId, contents, mediaAssets, generatio
     setAudioUrl(url)
     setSubtitleData(subtitles)
   }
+
+  useEffect(() => {
+    const requestedContentId = searchParams.get('contentId')
+    if (!requestedContentId || activeContentId || contents.length === 0) return
+
+    const requestedContent = contents.find((content: any) => content.id === requestedContentId)
+    if (requestedContent) {
+      startTransition(() => {
+        handleSelectContent(
+          requestedContent.id,
+          requestedContent.audio_url || null,
+          requestedContent.subtitle_data
+        )
+      })
+    }
+  }, [searchParams, contents, activeContentId])
 
   const activeContent = contents.find((c: any) => c.id === activeContentId)
   

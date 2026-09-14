@@ -3,17 +3,16 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { reviseContentWithAI, saveManualEdit, deleteContent, scheduleContent } from '@/lib/actions/content'
-import { Loader2, Wand2, Edit3, Save, X, AlertTriangle, Trash2, RefreshCw, CheckCircle2, Calendar } from 'lucide-react'
+import { Loader2, Wand2, Edit3, Save, X, AlertTriangle, Trash2, RefreshCw, CheckCircle2, Calendar, Video } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 
 // Fungsi untuk menyorot teks bermasalah berdasarkan kritik AI
 function highlightProblematicText(text: string, feedback: string | null, warnings: string[] | null) {
   if (!text || (!feedback && (!warnings || warnings.length === 0))) return text;
-  
+
   const quotes = new Set<string>();
   const combinedText = [feedback, ...(warnings || [])].filter(Boolean).join(' ');
-  
   const regex = /['"]([^'"]+)['"]/g;
   let match;
   while ((match = regex.exec(combinedText)) !== null) {
@@ -23,14 +22,14 @@ function highlightProblematicText(text: string, feedback: string | null, warning
   if (quotes.size === 0) return text;
 
   const sortedQuotes = Array.from(quotes).sort((a, b) => b.length - a.length);
-  let highlightedText = text;
-  sortedQuotes.forEach(quote => {
-    const escapedQuote = quote.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const quoteRegex = new RegExp(`(${escapedQuote})`, 'gi');
-    highlightedText = highlightedText.replace(quoteRegex, '<mark class="bg-red-200 dark:bg-red-900/60 text-red-900 dark:text-red-100 px-1 rounded-sm">$1</mark>');
-  });
+  const quoteRegex = new RegExp(`(${sortedQuotes.map(quote => quote.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+  const parts = text.split(quoteRegex);
 
-  return <span dangerouslySetInnerHTML={{ __html: highlightedText }} />;
+  return parts.map((part, index) =>
+    index % 2 === 1
+      ? <mark key={index} className="bg-red-200 dark:bg-red-900/60 text-red-900 dark:text-red-100 px-1 rounded-sm">{part}</mark>
+      : <span key={index}>{part}</span>
+  );
 }
 
 export function ContentCard({ businessId, content }: { businessId: string, content: any }) {
@@ -292,6 +291,14 @@ export function ContentCard({ businessId, content }: { businessId: string, conte
               <div className="flex-1 w-full flex justify-end gap-2">
                 <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setIsEditing(true)}>
                   <Edit3 className="w-4 h-4 mr-2" /> Edit Naskah
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-primary/40 text-primary hover:bg-primary/10"
+                  onClick={() => router.push(`/dashboard/${businessId}/video?contentId=${content.id}`)}
+                >
+                  <Video className="w-4 h-4 mr-2" /> Buat Video
                 </Button>
                 <Button 
                   variant="default" 

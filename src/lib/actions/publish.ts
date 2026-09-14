@@ -9,7 +9,12 @@ export async function publishContentNow(businessId: string, contentId: string) {
 
   try {
     // 1. Ambil data konten
-    const { data: content, error: fetchError } = await supabase.from('contents').select('title, body, platform').eq('id', contentId).single()
+    const { data: content, error: fetchError } = await supabase
+      .from('contents')
+      .select('title, body, platform, business_id')
+      .eq('id', contentId)
+      .eq('business_id', businessId)
+      .single()
     if (fetchError || !content) throw new Error("Gagal mengambil data konten")
     
     // 2. Format teks untuk dipublikasikan
@@ -22,7 +27,7 @@ export async function publishContentNow(businessId: string, contentId: string) {
       // Catat kegagalan
       await supabase.from('contents').update({
         publish_error: result.error
-      }).eq('id', contentId)
+      }).eq('id', contentId).eq('business_id', businessId)
       
       throw new Error(`Publikasi gagal: ${result.error}`)
     }
@@ -32,7 +37,7 @@ export async function publishContentNow(businessId: string, contentId: string) {
       status: 'published',
       external_publish_id: result.external_id,
       publish_error: null
-    }).eq('id', contentId)
+    }).eq('id', contentId).eq('business_id', businessId)
 
     if (updateError) throw new Error(updateError.message)
       
