@@ -1,5 +1,5 @@
-import { VideoPromptReviewDemo } from '@/components/video/video-prompt-review-demo'
+import { redirect } from 'next/navigation'
 
 export default function Home() {
-  return <VideoPromptReviewDemo />
+  redirect('/dashboard')
 }
