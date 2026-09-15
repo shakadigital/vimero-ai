@@ -7,27 +7,26 @@ export type SubtitleToken = {
   duration: number; // in ticks
 };
 
+const EMPTY_SUBTITLES: SubtitleToken[] = [];
+
 export const KineticTypography: React.FC<{ subtitles?: SubtitleToken[] }> = ({ subtitles }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-
-  if (!subtitles || subtitles.length === 0) {
-    return null;
-  }
+  const subtitleTokens = subtitles ?? EMPTY_SUBTITLES;
 
   const currentMs = (frame / fps) * 1000;
 
   // Gabungkan kata-kata menjadi frase (maksimal 5 kata) agar timing tidak terlihat meleset
   const phrases = React.useMemo(() => {
-    const arr = [];
-    for (let i = 0; i < subtitles.length; i += 5) {
-      const chunk = subtitles.slice(i, i + 5);
+    const arr: { text: string; startMs: number; endMs: number }[] = [];
+    for (let i = 0; i < subtitleTokens.length; i += 5) {
+      const chunk = subtitleTokens.slice(i, i + 5);
       const text = chunk.map(s => s.text).join(' ');
       const startMs = chunk[0].offset / 10000;
       
       // Ambil offset dari kata pertama di chunk berikutnya sebagai endMs,
       // agar teks tetap tampil di layar meskipun ada jeda diam (silence)
-      const nextChunkFirstWord = i + 5 < subtitles.length ? subtitles[i + 5] : null;
+      const nextChunkFirstWord = i + 5 < subtitleTokens.length ? subtitleTokens[i + 5] : null;
       const endMs = nextChunkFirstWord 
         ? nextChunkFirstWord.offset / 10000 
         : (chunk[chunk.length - 1].offset + chunk[chunk.length - 1].duration) / 10000 + 2000; // Tambah 2 detik untuk kata terakhir
@@ -35,7 +34,7 @@ export const KineticTypography: React.FC<{ subtitles?: SubtitleToken[] }> = ({ s
       arr.push({ text, startMs, endMs });
     }
     return arr;
-  }, [subtitles]);
+  }, [subtitleTokens]);
 
   // Temukan frase mana yang sedang aktif berdasarkan currentMs
   const activePhraseIndex = phrases.findIndex((p) => {
@@ -43,6 +42,10 @@ export const KineticTypography: React.FC<{ subtitles?: SubtitleToken[] }> = ({ s
   });
 
   const activePhrase = activePhraseIndex !== -1 ? phrases[activePhraseIndex].text : '';
+
+  if (subtitleTokens.length === 0) {
+    return null;
+  }
 
   return (
     <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: '160px' }}>

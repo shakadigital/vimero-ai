@@ -4,14 +4,25 @@ import { KineticTypography } from './KineticTypography';
 
 export type VerticalVideoProps = {
   audioUrl?: string | null;
-  subtitleData?: any; 
-  mediaAssets?: any[];
+  subtitleData?: SubtitleToken[];
+  mediaAssets?: MediaAsset[];
   title?: string;
   fullText?: string;
   contentSegments?: { hook: number, body: number, cta: number };
 };
 
-export const VerticalVideo: React.FC<VerticalVideoProps> = ({ audioUrl, subtitleData, mediaAssets, title, fullText, contentSegments }) => {
+type SubtitleToken = {
+  text: string;
+  offset: number;
+  duration: number;
+};
+
+type MediaAsset = {
+  file_url: string;
+  type?: string;
+};
+
+export const VerticalVideo: React.FC<VerticalVideoProps> = ({ audioUrl, subtitleData, mediaAssets, title, fullText }) => {
   const { durationInFrames } = useVideoConfig();
 
   // Filter out invalid assets
@@ -44,16 +55,12 @@ export const VerticalVideo: React.FC<VerticalVideoProps> = ({ audioUrl, subtitle
       }
       
       const totalChars = chunks.reduce((acc, c) => acc + c.length, 0) || 1;
-      let accumulatedFrames = 0;
-      
       durations = validAssets.map((_, index) => {
         if (index === validAssets.length - 1) {
-          return durationInFrames - accumulatedFrames;
+          return durationInFrames - durations.reduce((total, duration) => total + duration, 0);
         }
         const chunkLength = chunks[index]?.length || (totalChars / validAssets.length);
-        const frames = Math.floor((chunkLength / totalChars) * durationInFrames);
-        accumulatedFrames += frames;
-        return frames;
+        return Math.floor((chunkLength / totalChars) * durationInFrames);
       });
     } else {
       // Fallback rata jika kalimat terlalu sedikit
@@ -125,7 +132,7 @@ export const VerticalVideo: React.FC<VerticalVideoProps> = ({ audioUrl, subtitle
 };
 
 // Komponen helper untuk efek transisi aset (Video atau Gambar)
-const MediaTransition: React.FC<{ asset: any, durationInFrames: number }> = ({ asset, durationInFrames }) => {
+const MediaTransition: React.FC<{ asset: MediaAsset, durationInFrames: number }> = ({ asset, durationInFrames }) => {
   const frame = useCurrentFrame();
   const scale = interpolate(frame, [0, durationInFrames], [1, 1.1], { extrapolateRight: 'clamp' });
   const opacity = interpolate(frame, [0, 15], [0, 0.6], { extrapolateRight: 'clamp' });
@@ -169,7 +176,7 @@ const FallbackTypography: React.FC<{ text: string, durationInFrames: number }> =
   if (words.length === 0) return null;
   
   // Gabungkan kata-kata menjadi frase (maksimal 5 kata)
-  const phrases = [];
+  const phrases: string[] = [];
   for (let i = 0; i < words.length; i += 5) {
     phrases.push(words.slice(i, i + 5).join(' '));
   }

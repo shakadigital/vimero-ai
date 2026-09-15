@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server'
 import { PageContainer } from '@/components/dashboard/page-container'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResearchCard } from './research-card'
-import { Button } from '@/components/ui/button'
 import { generateResearch } from '@/lib/actions/research'
 import { Search, TrendingUp, Users, Target } from 'lucide-react'
 import { SubmitButton } from '@/components/auth/submit-button'
@@ -26,11 +25,18 @@ export default async function ResearchPage({
   const supabase = await createClient()
 
   // Ambil data riset
-  const { data: researchItems } = await supabase
-    .from('research_items')
-    .select('*')
-    .eq('business_id', businessId)
-    .order('created_at', { ascending: false })
+  const [{ data: researchItems }, { data: pillars }] = await Promise.all([
+    supabase
+      .from('research_items')
+      .select('*')
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('content_pillars')
+      .select('id, name')
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: true }),
+  ])
 
   const getItemsByType = (type: string) => researchItems?.filter(item => item.type === type) || []
 
@@ -71,7 +77,7 @@ export default async function ResearchPage({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-              {trendItems.map(item => <ResearchCard key={item.id} item={item} />)}
+              {trendItems.map(item => <ResearchCard key={item.id} item={item} pillars={pillars || []} />)}
             </div>
           )}
         </TabsContent>
@@ -89,7 +95,7 @@ export default async function ResearchPage({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-              {competitorItems.map(item => <ResearchCard key={item.id} item={item} />)}
+              {competitorItems.map(item => <ResearchCard key={item.id} item={item} pillars={pillars || []} />)}
             </div>
           )}
         </TabsContent>
@@ -107,7 +113,7 @@ export default async function ResearchPage({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-              {audienceItems.map(item => <ResearchCard key={item.id} item={item} />)}
+              {audienceItems.map(item => <ResearchCard key={item.id} item={item} pillars={pillars || []} />)}
             </div>
           )}
         </TabsContent>
@@ -125,7 +131,7 @@ export default async function ResearchPage({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-              {keywordItems.map(item => <ResearchCard key={item.id} item={item} />)}
+              {keywordItems.map(item => <ResearchCard key={item.id} item={item} pillars={pillars || []} />)}
             </div>
           )}
         </TabsContent>

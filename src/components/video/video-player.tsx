@@ -18,9 +18,10 @@ interface VideoPlayerProps {
   subtitleData?: any
   mediaAssets?: any[]
   content?: any
+  videoPrompt?: string | null
 }
 
-export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, content }: VideoPlayerProps) {
+export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, content, videoPrompt }: VideoPlayerProps) {
   const [isRendering, setIsRendering] = useState(false)
   const [isAutoGenerating, setIsAutoGenerating] = useState(false)
   const [renderProgress, setRenderProgress] = useState(0)
@@ -125,8 +126,9 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
       return
     }
 
-    const fullText = `${content.hook || ''} ${content.body || ''} ${content.cta || ''}`.trim()
-    if (fullText.length < 10) {
+    const scriptText = `${content.hook || ''} ${content.body || ''} ${content.cta || ''}`.trim()
+    const visualBrief = videoPrompt || scriptText
+    if (scriptText.length < 10) {
       toast.error('Naskah kosong atau terlalu pendek!')
       return
     }
@@ -141,7 +143,7 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
       const audioResult = await generateAudioAction(
         businessId,
         content.id,
-        fullText,
+        scriptText,
         'dimas'
       )
       if (!audioResult.success || !audioResult.audioUrl) {
@@ -152,7 +154,7 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
       setGeneratedSubtitleData(audioResult.subtitles)
 
       toast.info('Mencari B-Roll yang sesuai...')
-      const stockResult = await generateStockVideo(businessId, content.id, fullText)
+      const stockResult = await generateStockVideo(businessId, content.id, visualBrief)
       const generatedAssets = (stockResult.imageUrls || []).map((fileUrl: string) => ({
         file_url: fileUrl,
         type: 'video'
@@ -164,7 +166,7 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
         content.title,
         generatedAssets,
         audioResult.subtitles,
-        fullText,
+        scriptText,
         businessId,
         content.id,
         {

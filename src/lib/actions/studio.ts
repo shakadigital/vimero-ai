@@ -2,7 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
-import { runCreativeDirector, runVideoDirector } from '@/lib/ai/agents/director'
+import { REQUIRED_VIDEO_VISUAL_DIRECTIVE, runCreativeDirector, runVideoDirector, runVideoPromptDirector } from '@/lib/ai/agents/director'
 import { generateImageCloudflare } from '@/lib/ai/image-router'
 import { randomUUID } from 'node:crypto'
 import { requireBusinessMembership, assertResourceInBusiness, assertText } from '@/lib/auth/business-access'
@@ -65,6 +65,39 @@ export async function generateCreativeImage(businessId: string, contentId: strin
   } catch (error: any) {
     console.error('generateCreativeImage Error:', error)
     throw new Error(error.message)
+  }
+}
+
+export async function generateVideoPromptReview(businessId: string, contentId: string) {
+  const { supabase } = await requireBusinessMembership(businessId)
+  const { data: content, error } = await supabase
+    .from('contents')
+    .select('id, title, hook, body, cta')
+    .eq('id', contentId)
+    .eq('business_id', businessId)
+    .single()
+
+  if (error || !content) throw new Error('Naskah tidak ditemukan atau akses ditolak.')
+
+  const context = JSON.stringify({
+    judul: content.title,
+    deskripsi: [content.hook, content.body, content.cta].filter(Boolean).join('\n'),
+    platform_tujuan: 'TikTok/Reels',
+    tone: 'profesional, menarik, dan mudah dipahami',
+  })
+
+  try {
+    const result = await runVideoPromptDirector(businessId, context)
+    const normalizedShots = result.shots.map((shot) => ({
+      ...shot,
+      catatan_tambahan: shot.catatan_tambahan.toLowerCase().includes(REQUIRED_VIDEO_VISUAL_DIRECTIVE)
+        ? shot.catatan_tambahan
+        : `${shot.catatan_tambahan}; wajibkan ${REQUIRED_VIDEO_VISUAL_DIRECTIVE}`,
+    }))
+    return { success: true, shots: normalizedShots }
+  } catch (error: any) {
+    console.error('generateVideoPromptReview Error:', error)
+    throw new Error(error.message || 'Gagal membuat draft prompt video')
   }
 }
 
@@ -132,7 +165,8 @@ export async function generateStockVideo(businessId: string, contentId: string |
   try {
     // 1. Dapatkan keyword spesifik dari AI Director
     // NOTE: Harus import runVideoDirector di atas
-    const directorOutput = await runVideoDirector(businessId, brief)
+    const cinematicBrief = `${brief}\n\nCinematic visual direction: ${REQUIRED_VIDEO_VISUAL_DIRECTIVE}.`
+    const directorOutput = await runVideoDirector(businessId, cinematicBrief)
     const queries = directorOutput?.queries || ['business', 'working', 'success']
 
     let videoUrls: string[] = []
@@ -155,6 +189,8 @@ export async function generateStockVideo(businessId: string, contentId: string |
             const hdFile = v.video_files.find((f: any) => f.quality === 'hd') || v.video_files[0]
             if (hdFile) videoUrls.push(hdFile.link)
           }
+        } else {
+          console.warn(`Pexels request failed for query "${query}" with status ${res.status}`)
         }
       }
     }
@@ -205,8 +241,8 @@ export async function generateStockVideo(businessId: string, contentId: string |
     revalidatePath(`/dashboard/${businessId}/studio`)
     return { success: true, imageUrls: videoUrls, prompt: queries.join(', '), type: 'video' }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('generateStockVideo Error:', error)
-    throw new Error(error.message)
+    throw new Error(error instanceof Error ? error.message : 'Gagal membuat aset video stock.')
   }
 }

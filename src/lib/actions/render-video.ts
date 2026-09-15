@@ -51,9 +51,9 @@ export async function renderVideoAction(
         .select('id')
         .single()
         
-      if (!insertError && renderData) {
-        renderId = renderData.id;
-      }
+      if (insertError) throw new Error(`Gagal membuat antrean render: ${insertError.message}`)
+      if (!renderData) throw new Error('Gagal membuat antrean render: ID render tidak tersedia')
+      renderId = renderData.id;
     }
 
     const outputDir = path.join(process.cwd(), 'public', 'temp')
@@ -85,8 +85,11 @@ export async function renderVideoAction(
     // Menggunakan spawn agar bisa membaca stdout secara real-time
     const child = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', [
       'remotion', 'render', 'src/remotion/index.ts', 'VerticalVideo', outputPath,
-      `--props=${propsPath}`,
-      `--frames=${durationInFrames}`
+      `--props="${propsPath}"`,
+      `--duration=${durationInFrames}`,
+      `--frames=0-${Math.max(0, durationInFrames - 1)}`,
+      '--concurrency=1',
+      '--ignore-certificate-errors'
     ], { shell: true })
 
     // Fungsi untuk mengupdate progress secara throttled
@@ -110,8 +113,11 @@ export async function renderVideoAction(
       }
     });
 
+    let renderErrorOutput = ''
     child.stderr.on('data', (data) => {
-      console.error(`Remotion Stderr: ${data}`);
+      const text = data.toString()
+      renderErrorOutput = `${renderErrorOutput}${text}`.slice(-4_000)
+      console.error(`Remotion Stderr: ${text}`)
     });
 
     child.on('close', async (code) => {
@@ -128,7 +134,10 @@ export async function renderVideoAction(
         console.error("Render failed with code", code)
         if (renderId) {
           await supabase.from('video_renders')
-            .update({ status: 'failed', error_message: `Proses render gagal (exit code: ${code})` })
+            .update({
+              status: 'failed',
+              error_message: `Proses render gagal (exit code: ${code}). ${renderErrorOutput.trim().slice(-1_500)}`
+            })
             .eq('id', renderId);
         }
       }

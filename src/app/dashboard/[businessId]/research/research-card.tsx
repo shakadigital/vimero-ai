@@ -4,9 +4,11 @@ import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { generateContentFromResearch, deleteResearchItem } from '@/lib/actions/research'
+import { createIdea } from '@/lib/actions/content'
 import { toast } from 'sonner'
-import { Loader2, Sparkles, Trash2, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { Loader2, Sparkles, Trash2, Lightbulb } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface ResearchCardProps {
   item: {
@@ -17,13 +19,33 @@ interface ResearchCardProps {
     content: string
     created_at: string
   }
+  pillars: { id: string; name: string }[]
 }
 
-export function ResearchCard({ item }: ResearchCardProps) {
+export function ResearchCard({ item, pillars }: ResearchCardProps) {
   const router = useRouter()
   const [isGenerating, setIsGenerating] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [progress, setProgress] = useState<string | null>(null)
+  const [selectedPillarId, setSelectedPillarId] = useState(pillars[0]?.id || '')
+  const [isSavingIdea, setIsSavingIdea] = useState(false)
+
+  async function handleSaveAsIdea() {
+    if (!selectedPillarId) {
+      toast.error('Buat Pilar Konten terlebih dahulu.')
+      return
+    }
+
+    setIsSavingIdea(true)
+    try {
+      await createIdea(item.business_id, selectedPillarId, item.title, item.content)
+      toast.success('Hasil riset disimpan sebagai ide pending di Pilar.')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Gagal menyimpan hasil riset sebagai ide.')
+    } finally {
+      setIsSavingIdea(false)
+    }
+  }
 
   async function handleGenerate() {
     setIsGenerating(true)
@@ -63,9 +85,9 @@ export function ResearchCard({ item }: ResearchCardProps) {
       }
 
       setTimeout(() => router.push(`/dashboard/${item.business_id}/contents`), 1000)
-    } catch (error: any) {
+    } catch (error: unknown) {
       clearInterval(progressTimer)
-      toast.error(error.message)
+      toast.error(error instanceof Error ? error.message : 'Gagal membuat konten dari riset.')
       setIsGenerating(false)
       setProgress(null)
     }
@@ -76,8 +98,8 @@ export function ResearchCard({ item }: ResearchCardProps) {
     try {
       await deleteResearchItem(item.business_id, item.id)
       toast.success('Laporan riset dihapus.')
-    } catch (error: any) {
-      toast.error(error.message)
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Gagal menghapus laporan riset.')
       setIsDeleting(false)
     }
   }
@@ -103,35 +125,39 @@ export function ResearchCard({ item }: ResearchCardProps) {
         <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-4">{item.content}</p>
       </CardContent>
 
-      <CardFooter className="flex gap-2 justify-between border-t p-4 pt-3 sm:p-6 sm:pt-4">
-        <Button
-          size="sm"
-          onClick={handleGenerate}
-          disabled={isGenerating || isDeleting}
-          className="flex-1 gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white border-0"
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="truncate">{progress ?? 'AI sedang menulis...'}</span>
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4" />
-              Buat Konten (3 Variasi)
-            </>
-          )}
-        </Button>
+      <CardFooter className="flex flex-col gap-3 border-t p-4 pt-3 sm:p-6 sm:pt-4">
+        {pillars.length > 0 ? (
+          <div className="flex w-full gap-2">
+            <Select value={selectedPillarId} onValueChange={(value) => value && setSelectedPillarId(value)}>
+              <SelectTrigger size="sm" className="min-w-0 flex-1">
+                <SelectValue placeholder="Pilih Pilar" />
+              </SelectTrigger>
+              <SelectContent>
+                {pillars.map((pillar) => <SelectItem key={pillar.id} value={pillar.id}>{pillar.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button size="sm" variant="outline" onClick={handleSaveAsIdea} disabled={isSavingIdea || isGenerating || isDeleting} className="gap-2">
+              {isSavingIdea ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />}
+              Simpan Ide
+            </Button>
+          </div>
+        ) : (
+          <p className="w-full text-xs text-muted-foreground">Buat Pilar terlebih dahulu untuk menyimpan hasil riset sebagai ide.</p>
+        )}
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleDelete}
-          disabled={isGenerating || isDeleting}
-          className="text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
-        >
-          {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-        </Button>
+        <div className="flex w-full gap-2">
+          <Button
+            size="sm"
+            onClick={handleGenerate}
+            disabled={isGenerating || isDeleting || isSavingIdea}
+            className="flex-1 gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700"
+          >
+            {isGenerating ? <><Loader2 className="h-4 w-4 animate-spin" /><span className="truncate">{progress ?? 'AI sedang menulis...'}</span></> : <><Sparkles className="h-4 w-4" />Buat Konten (3 Variasi)</>}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handleDelete} disabled={isGenerating || isDeleting || isSavingIdea} className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive">
+            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   )

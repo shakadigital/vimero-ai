@@ -5,22 +5,26 @@ import { useSearchParams } from 'next/navigation'
 import { AudioGenerator } from '@/components/video/audio-generator'
 import { VideoPlayer } from '@/components/video/video-player'
 import { Headphones, Video } from 'lucide-react'
+import { VideoPromptReview } from '@/components/video/video-prompt-review'
 
 export function VideoStudioClient({ businessId, contents, mediaAssets, generationHistory = [] }: any) {
   const searchParams = useSearchParams()
   const [activeContentId, setActiveContentId] = useState<string>('')
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [subtitleData, setSubtitleData] = useState<any>(null)
+  const [videoPrompt, setVideoPrompt] = useState<string | null>(null)
 
   const handleAudioGenerated = (url: string, subtitles: any) => {
     setAudioUrl(url)
     setSubtitleData(subtitles)
+    setVideoPrompt(null)
   }
 
   const handleSelectContent = (id: string, url: string | null, subtitles: any) => {
     setActiveContentId(id)
     setAudioUrl(url)
     setSubtitleData(subtitles)
+    setVideoPrompt(null)
   }
 
   useEffect(() => {
@@ -64,6 +68,13 @@ export function VideoStudioClient({ businessId, contents, mediaAssets, generatio
           onSelectContent={handleSelectContent}
           onAudioGenerated={handleAudioGenerated}
         />
+        {activeContent && (
+          <VideoPromptReview
+            businessId={businessId}
+            contentId={activeContent.id}
+            onPromptReady={setVideoPrompt}
+          />
+        )}
       </div>
 
       <div className="glass-panel flex w-full lg:w-1/2 flex-col rounded-2xl transition-all duration-300 hover:border-accent/30 hover:shadow-accent/5 p-6">
@@ -78,6 +89,7 @@ export function VideoStudioClient({ businessId, contents, mediaAssets, generatio
             subtitleData={subtitleData || activeContent?.subtitle_data}
             mediaAssets={videoMediaAssets}
             content={activeContent}
+            videoPrompt={videoPrompt}
           />
         </div>
       </div>
