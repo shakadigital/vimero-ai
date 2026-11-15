@@ -2,7 +2,6 @@
 
 import { useActionState } from 'react'
 import { login } from '@/lib/actions/auth'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -32,7 +31,12 @@ export function LoginForm() {
             <Input id="email" name="email" type="email" placeholder="nama@email.com" required />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Password</Label>
+              <Link href="/auth/forgot-password" className="text-xs text-muted-foreground underline hover:text-primary">
+                Lupa password?
+              </Link>
+            </div>
             <Input id="password" name="password" type="password" required />
           </div>
         </CardContent>

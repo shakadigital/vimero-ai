@@ -44,11 +44,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Redirect authenticated users away from auth pages
+  // Redirect authenticated users away from auth pages (except callback and reset-password)
   if (
     user && 
     request.nextUrl.pathname.startsWith('/auth/') &&
-    !request.nextUrl.pathname.startsWith('/auth/callback')
+    !request.nextUrl.pathname.startsWith('/auth/callback') &&
+    !request.nextUrl.pathname.startsWith('/auth/reset-password')
   ) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
