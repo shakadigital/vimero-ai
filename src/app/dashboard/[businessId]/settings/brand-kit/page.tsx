@@ -139,6 +139,98 @@ export default async function BrandKitPage({ params }: { params: Promise<{ busin
               />
             </div>
           </CardContent>
+        </Card>
+
+        <Card className="max-w-2xl mt-6">
+          <CardHeader>
+            <CardTitle>Voice, Proof &amp; Reel Defaults</CardTitle>
+            <CardDescription>Fakta nyata, sudut pandang khas, serta pengaturan default untuk Reel &amp; Caption.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="pronouns">Kata Ganti (Pronouns)</Label>
+                <Input
+                  id="pronouns"
+                  name="pronouns"
+                  defaultValue={brandKit?.pronouns || 'aku-kamu'}
+                  placeholder="Contoh: aku-kamu / saya-Anda"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="speaking_wpm">Kecepatan Bicara (WPM)</Label>
+                <Input
+                  id="speaking_wpm"
+                  name="speaking_wpm"
+                  type="number"
+                  min={100}
+                  max={250}
+                  defaultValue={brandKit?.speaking_wpm || 165}
+                  placeholder="165"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="proof_points">Fakta &amp; Bukti Nyata (1 baris per fakta)</Label>
+              <textarea
+                id="proof_points"
+                name="proof_points"
+                rows={3}
+                defaultValue={brandKit?.proof_points?.join('\n') || ''}
+                placeholder="Contoh: Digunakan oleh 120+ UMKM kuliner di Jawa Timur"
+                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="brand_positions">Sudut Pandang Khas / Positions (1 baris per opini)</Label>
+              <textarea
+                id="brand_positions"
+                name="brand_positions"
+                rows={3}
+                defaultValue={brandKit?.brand_positions?.join('\n') || ''}
+                placeholder="Contoh: Mulai merancang aplikasi dari siapa penggunanya, bukan daftar fitur"
+                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="default_search_terms">Default Search Terms (maks. 4, pisahkan koma)</Label>
+              <Input
+                id="default_search_terms"
+                name="default_search_terms"
+                defaultValue={brandKit?.default_search_terms?.join(', ') || ''}
+                placeholder="Contoh: otomasi bisnis, aplikasi bisnis, produk digital"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="default_hashtags">Default Hashtags (pisahkan koma)</Label>
+              <Input
+                id="default_hashtags"
+                name="default_hashtags"
+                defaultValue={brandKit?.default_hashtags?.join(', ') || ''}
+                placeholder="Contoh: #otomasibisnis, #aplikasibisnis"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cta_keyword">Default CTA Keyword</Label>
+                <Input
+                  id="cta_keyword"
+                  name="cta_keyword"
+                  defaultValue={brandKit?.cta_keyword || ''}
+                  placeholder="Contoh: TEMPLATE"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cta_delivers">Yang Didapat User dari CTA</Label>
+                <Input
+                  id="cta_delivers"
+                  name="cta_delivers"
+                  defaultValue={brandKit?.cta_delivers || ''}
+                  placeholder="Contoh: link template via DM"
+                />
+              </div>
+            </div>
+          </CardContent>
           <CardFooter className="pt-6">
             <SubmitButton pendingText="Menyimpan...">Simpan Perubahan</SubmitButton>
           </CardFooter>

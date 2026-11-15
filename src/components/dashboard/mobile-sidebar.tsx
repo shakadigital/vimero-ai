@@ -38,9 +38,6 @@ export function MobileSidebar({ businessId, businessName, userEmail, userRole }:
             <div className="font-black tracking-tight text-base text-white flex items-center gap-1.5">
               VIMERO
             </div>
-            <div className="text-[11px] text-muted-foreground font-medium">
-              Personal Studio
-            </div>
           </div>
         </div>
 

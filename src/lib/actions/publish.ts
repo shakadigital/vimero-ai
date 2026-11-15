@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { publishToBuffer } from '@/lib/integrations/buffer'
+import { getErrorMessage } from '@/lib/utils'
 
 export async function publishContentNow(businessId: string, contentId: string) {
   const supabase = await createClient()
@@ -44,7 +45,7 @@ export async function publishContentNow(businessId: string, contentId: string) {
     revalidatePath(`/dashboard/${businessId}/calendar`)
     revalidatePath(`/dashboard/${businessId}/contents`)
     return { success: true }
-  } catch (error: any) {
-    throw new Error(error.message)
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error))
   }
 }

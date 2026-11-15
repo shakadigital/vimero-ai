@@ -4,13 +4,32 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useIdeaFromBank, autoGenerateFromIdeaBank } from '@/lib/actions/content'
+import { useIdeaFromBank as applyIdeaFromBank, autoGenerateFromIdeaBank } from '@/lib/actions/content'
 import { toast } from 'sonner'
 import { PlusCircle, Loader2, Sparkles } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { getErrorMessage } from '@/lib/utils'
 
-export function IdeaBankClient({ businessId, initialIdeas, categories, pillars }: any) {
+interface IdeaItem {
+  id: string
+  category: string
+  title: string
+  description?: string | null
+}
+
+interface PillarItem {
+  id: string
+  name: string
+}
+
+interface IdeaBankClientProps {
+  businessId: string
+  initialIdeas: IdeaItem[]
+  categories: string[]
+  pillars: PillarItem[]
+}
+
+export function IdeaBankClient({ businessId, initialIdeas, categories, pillars }: IdeaBankClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const activeCategory = searchParams.get('category') || 'all'
@@ -31,12 +50,12 @@ export function IdeaBankClient({ businessId, initialIdeas, categories, pillars }
 
     setIsAdding(ideaId)
     try {
-      const res = await useIdeaFromBank(businessId, defaultPillarId, ideaTitle, ideaDesc || ideaTitle)
+      const res = await applyIdeaFromBank(businessId, defaultPillarId, ideaTitle, ideaDesc || ideaTitle)
       if (res.success) {
         toast.success(`Ide berhasil ditambahkan ke pilar ${pillars[0].name}!`)
       }
-    } catch (err: any) {
-      toast.error(err.message || "Gagal menyalin ide.")
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Gagal menyalin ide."))
     } finally {
       setIsAdding(null)
     }
@@ -55,8 +74,8 @@ export function IdeaBankClient({ businessId, initialIdeas, categories, pillars }
       await autoGenerateFromIdeaBank(businessId, pillarId, ideaTitle, ideaDesc)
       toast.success('🎉 Naskah berhasil digenerate otomatis!')
       router.push(`/dashboard/${businessId}/contents`)
-    } catch (err: any) {
-      toast.error('Gagal generate naskah: ' + err.message)
+    } catch (err: unknown) {
+      toast.error('Gagal generate naskah: ' + getErrorMessage(err))
     } finally {
       setIsGenerating(null)
     }
@@ -90,7 +109,7 @@ export function IdeaBankClient({ businessId, initialIdeas, categories, pillars }
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filteredIdeas.map((idea: any) => (
+        {filteredIdeas.map((idea) => (
           <Card key={idea.id} className="flex flex-col hover:border-primary/50 transition-colors">
             <CardHeader className="pb-3">
               <Badge variant="secondary" className="w-fit mb-2 text-xs">
@@ -109,7 +128,7 @@ export function IdeaBankClient({ businessId, initialIdeas, categories, pillars }
                   variant="secondary"
                   size="sm"
                   className="flex-1"
-                  onClick={() => handleUseIdea(idea.id, idea.title, idea.description)}
+                  onClick={() => handleUseIdea(idea.id, idea.title, idea.description || '')}
                   disabled={isAdding === idea.id || isGenerating === idea.id}
                 >
                   {isAdding === idea.id ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PlusCircle className="w-4 h-4 mr-2" />}
@@ -119,7 +138,7 @@ export function IdeaBankClient({ businessId, initialIdeas, categories, pillars }
                 <Button 
                   size="sm"
                   className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white border-0"
-                  onClick={() => handleAutoGenerate(idea.id, idea.title, idea.description)}
+                  onClick={() => handleAutoGenerate(idea.id, idea.title, idea.description || '')}
                   disabled={isAdding === idea.id || isGenerating === idea.id}
                 >
                   {isGenerating === idea.id ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}

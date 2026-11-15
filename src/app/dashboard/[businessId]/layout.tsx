@@ -70,8 +70,8 @@ export default async function BusinessLayout({
               <div className="font-black tracking-tight text-base text-white flex items-center gap-1.5">
                 VIMERO
               </div>
-              <div className="text-[11px] text-muted-foreground font-medium">
-                Personal Studio
+              <div className="text-[10px] text-muted-foreground/60 font-mono">
+                v{pkg.version}
               </div>
             </div>
           </div>
@@ -128,9 +128,6 @@ export default async function BusinessLayout({
                 </button>
               </form>
             </div>
-          </div>
-          <div className="text-[10px] text-center text-muted-foreground/60 mt-2 font-mono">
-            VIMERO v{pkg.version}
           </div>
         </div>
       </aside>

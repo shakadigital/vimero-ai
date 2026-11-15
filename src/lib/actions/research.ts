@@ -5,11 +5,12 @@ import { runResearcher } from '@/lib/ai/agents/researcher'
 import { runCopywriter } from '@/lib/ai/agents/copywriter'
 import { runContentCritic } from '@/lib/ai/agents/critic'
 import { revalidatePath } from 'next/cache'
+import { getErrorMessage } from '@/lib/utils'
 
 export async function generateResearch(
   businessId: string,
   researchType: 'trend' | 'competitor' | 'audience' | 'keyword',
-  formData?: FormData
+  _formData?: FormData
 ) {
   const supabase = await createClient()
   try {
@@ -23,8 +24,8 @@ export async function generateResearch(
     const { error } = await supabase.from('research_items').insert(insertData)
     if (error) throw new Error(error.message)
     revalidatePath(`/dashboard/${businessId}/research`)
-  } catch (error: any) {
-    throw new Error(error.message || 'Gagal menghasilkan riset')
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error, 'Gagal menghasilkan riset'))
   }
 }
 
@@ -93,9 +94,9 @@ Angle konten: ${variation.tone}
       })
 
       results.push({ label: variation.label, score: review.score, status: finalStatus })
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Lanjutkan variasi lain jika satu gagal
-      console.error(`Variasi ${variation.label} gagal:`, err.message)
+      console.error(`Variasi ${variation.label} gagal:`, getErrorMessage(err))
     }
   }
 

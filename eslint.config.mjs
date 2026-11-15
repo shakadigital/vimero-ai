@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated service worker & ad-hoc root/seed scripts:
+    "public/sw.js",
+    "scripts/**",
+    "find_image_models.js",
+    "test_*.ts",
   ]),
 ]);
 

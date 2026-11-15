@@ -7,6 +7,22 @@ export const metadata = {
   description: 'Kelola pilar konten dan ide-ide brilian Anda.',
 }
 
+interface ContentIdeaRow {
+  id: string
+  title: string
+  description?: string | null
+  status: string
+  created_at: string
+  pillarName?: string
+}
+
+interface ContentPillarRow {
+  id: string
+  name: string
+  description?: string | null
+  content_ideas?: ContentIdeaRow[] | null
+}
+
 export default async function PillarsPage({ params }: { params: Promise<{ businessId: string }> }) {
   const { businessId } = await params
   const supabase = await createClient()
@@ -18,10 +34,11 @@ export default async function PillarsPage({ params }: { params: Promise<{ busine
     .order('created_at', { ascending: true })
 
   // Ide pending = dari riset (bukan dari bank_ide yang langsung 'converted')
-  const pendingIdeas = pillars
-    ?.flatMap(p => (p.content_ideas || []).map((idea: any) => ({ ...idea, pillarName: p.name })))
-    .filter((idea: any) => idea.status === 'pending')
-    .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) || []
+  const typedPillars = (pillars || []) as ContentPillarRow[]
+  const pendingIdeas = typedPillars
+    .flatMap(p => (p.content_ideas || []).map((idea) => ({ ...idea, pillarName: p.name })))
+    .filter((idea) => idea.status === 'pending')
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
   return (
     <PageContainer

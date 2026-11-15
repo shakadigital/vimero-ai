@@ -8,6 +8,7 @@ export type ProviderType = 'gemini' | 'groq'
 export interface RouterOptions {
   provider?: ProviderType
   model?: string
+  maxTokens?: number
 }
 
 export async function generateStructuredData<T>({
@@ -38,7 +39,8 @@ export async function generateStructuredData<T>({
       system,
       prompt,
       schema,
-      maxTokens: 400, // Dikurangi dari 800 menjadi 400 untuk mencegah error Limit 1000 output tokens Groq
+      // Batasi 400 token hanya untuk Groq agar tidak terkena limit 1000 output tokens
+      maxTokens: options?.maxTokens ?? (providerType === 'groq' ? 400 : 2048),
     })
 
     return { 

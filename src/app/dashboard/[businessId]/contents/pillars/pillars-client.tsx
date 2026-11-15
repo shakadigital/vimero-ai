@@ -8,10 +8,11 @@ import { Badge } from '@/components/ui/badge'
 import { createPillar, createIdea, autoProcessIdea, deleteContentIdea, deleteAllPendingIdeas } from '@/lib/actions/content'
 import { toast } from 'sonner'
 import {
-  Lightbulb, ArrowRight, Inbox, Plus, X, ChevronDown,
+  Lightbulb, Inbox, Plus, X, ChevronDown,
   Hash, TrendingUp, Heart, BookOpen, ShoppingBag, Smile,
-  Sparkles, Star, MessageSquare, Zap, Award, Target, Trash2, AlertTriangle
+  Sparkles, Star, MessageSquare, Zap, Award, Target, Trash2
 } from 'lucide-react'
+import { getErrorMessage } from '@/lib/utils'
 
 const IDEA_BANK_CATEGORIES = [
   { label: 'Fashion', cat: 'Ide Konten Fashion', icon: Star, color: 'from-pink-500/20 to-rose-500/10 border-pink-500/30 text-pink-400' },
@@ -32,10 +33,25 @@ const IDEA_BANK_CATEGORIES = [
 
 const PAGE_SIZE = 20
 
+interface ContentIdeaItem {
+  id: string
+  title: string
+  description?: string | null
+  status: string
+  pillarName?: string
+}
+
+interface ContentPillarItem {
+  id: string
+  name: string
+  description?: string | null
+  content_ideas?: ContentIdeaItem[] | null
+}
+
 interface PillarsClientProps {
   businessId: string
-  pillars: any[]
-  pendingIdeas: any[]
+  pillars: ContentPillarItem[]
+  pendingIdeas: ContentIdeaItem[]
 }
 
 export function PillarsClient({ businessId, pillars, pendingIdeas }: PillarsClientProps) {
@@ -59,8 +75,8 @@ export function PillarsClient({ businessId, pillars, pendingIdeas }: PillarsClie
       await createPillar(businessId, name, description)
       toast.success('Pilar konten berhasil dibuat!')
       setShowPillarForm(false)
-    } catch (e: any) {
-      toast.error(e.message)
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e))
     } finally {
       setIsCreatingPillar(false)
     }
@@ -76,8 +92,8 @@ export function PillarsClient({ businessId, pillars, pendingIdeas }: PillarsClie
         toast.warning(`⚠️ Konten dibuat, skor ${result.score}/100 — Perlu perbaikan. Cek di Studio Konten.`, { duration: 4000 })
       }
       setTimeout(() => router.push(`/dashboard/${businessId}/contents`), 1500)
-    } catch (e: any) {
-      toast.error(e.message)
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e))
       setAddingIdeaId(null)
     }
   }
@@ -87,8 +103,8 @@ export function PillarsClient({ businessId, pillars, pendingIdeas }: PillarsClie
     try {
       await deleteContentIdea(businessId, ideaId)
       toast.success('Ide dihapus dari antrian.')
-    } catch (e: any) {
-      toast.error(e.message)
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e))
       setDeletingIdeaId(null)
     }
   }
@@ -99,8 +115,8 @@ export function PillarsClient({ businessId, pillars, pendingIdeas }: PillarsClie
     try {
       await deleteAllPendingIdeas(businessId)
       toast.success('Semua ide pending berhasil dihapus.')
-    } catch (e: any) {
-      toast.error(e.message)
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e))
       setIsClearingAll(false)
     }
   }
@@ -203,7 +219,7 @@ export function PillarsClient({ businessId, pillars, pendingIdeas }: PillarsClie
             </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {visibleIdeas.map((idea: any) => (
+            {visibleIdeas.map((idea) => (
               <div
                 key={idea.id}
                 className="border border-yellow-400/20 bg-yellow-400/5 rounded-xl p-4 flex flex-col gap-3 hover:border-yellow-400/40 transition-colors relative group"
@@ -232,7 +248,7 @@ export function PillarsClient({ businessId, pillars, pendingIdeas }: PillarsClie
                 <Button
                   size="sm"
                   className="w-full gap-2 mt-auto"
-                  onClick={() => handleConvertToDraft(idea.id, idea.title, idea.description)}
+                  onClick={() => handleConvertToDraft(idea.id, idea.title, idea.description || '')}
                   disabled={addingIdeaId === idea.id || deletingIdeaId === idea.id}
                 >
                   {addingIdeaId === idea.id ? (
@@ -274,8 +290,8 @@ export function PillarsClient({ businessId, pillars, pendingIdeas }: PillarsClie
         <div>
           <h2 className="text-base font-semibold mb-4">Pilar Konten Anda</h2>
           <div className="grid md:grid-cols-2 gap-6">
-            {pillars.map((pillar: any) => {
-              const ideas = (pillar.content_ideas || []).filter((i: any) => i.status !== 'converted') as any[]
+            {pillars.map((pillar) => {
+              const ideas = (pillar.content_ideas || []).filter((i) => i.status !== 'converted')
               return (
                 <div key={pillar.id} className="border rounded-xl bg-card shadow-sm flex flex-col overflow-hidden">
                   <div className="p-5 border-b">
@@ -287,7 +303,7 @@ export function PillarsClient({ businessId, pillars, pendingIdeas }: PillarsClie
 
                   {ideas.length > 0 ? (
                     <ul className="divide-y max-h-48 overflow-y-auto">
-                      {ideas.map((idea: any) => (
+                      {ideas.map((idea) => (
                         <li key={idea.id} className="px-5 py-3 flex items-center justify-between gap-3">
                           <span className="text-sm flex-1 line-clamp-1">{idea.title}</span>
                           <Badge
@@ -321,7 +337,7 @@ export function PillarsClient({ businessId, pillars, pendingIdeas }: PillarsClie
         <div className="text-center py-16 border border-dashed rounded-xl text-muted-foreground">
           <Lightbulb className="w-10 h-10 mx-auto mb-3 opacity-25" />
           <p className="font-medium">Belum ada pilar atau ide</p>
-          <p className="text-sm mt-1">Klik "Buat Pilar Baru" di atas atau eksplorasi Bank Ide untuk mulai</p>
+          <p className="text-sm mt-1">Klik &ldquo;Buat Pilar Baru&rdquo; di atas atau eksplorasi Bank Ide untuk mulai</p>
         </div>
       )}
     </div>
@@ -343,8 +359,8 @@ function AddIdeaForm({ businessId, pillarId }: { businessId: string; pillarId: s
       toast.success('Ide berhasil disimpan!')
       formRef.current?.reset()
       setOpen(false)
-    } catch (e: any) {
-      toast.error(e.message)
+    } catch (e: unknown) {
+      toast.error(getErrorMessage(e))
     } finally {
       setLoading(false)
     }

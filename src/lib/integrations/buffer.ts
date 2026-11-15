@@ -84,8 +84,8 @@ export async function publishToBuffer(text: string, _platform: string, imageUrl?
       error: `Buffer menolak publikasi (HTTP ${response.status})`
     }
 
-  } catch (err: any) {
-    console.warn('Buffer network exception:', err.message)
+  } catch (err: unknown) {
+    console.warn('Buffer network exception:', err instanceof Error ? err.message : err)
     return {
       success: false,
       error: 'Buffer tidak dapat dihubungi'
@@ -149,8 +149,8 @@ export async function scheduleToBuffer(text: string, platform: string, scheduled
       error: `Buffer menolak penjadwalan (HTTP ${response.status})`
     }
 
-  } catch (err: any) {
-    console.warn('Buffer schedule network exception:', err.message)
+  } catch (err: unknown) {
+    console.warn('Buffer schedule network exception:', err instanceof Error ? err.message : err)
     return {
       success: false,
       error: 'Buffer tidak dapat dihubungi'
@@ -179,7 +179,7 @@ export async function deleteFromBuffer(updateId: string): Promise<void> {
       const errText = await res.text()
       console.warn(`Buffer destroy update warning: ${errText}`)
     }
-  } catch (err: any) {
-    console.warn('Buffer delete network exception:', err.message)
+  } catch (err: unknown) {
+    console.warn('Buffer delete network exception:', err instanceof Error ? err.message : err)
   }
 }

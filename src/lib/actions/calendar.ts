@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { scheduleToBuffer, deleteFromBuffer } from '@/lib/integrations/buffer'
 import { requireBusinessMembership, assertResourceInBusiness, assertPlatform } from '@/lib/auth/business-access'
+import { getErrorMessage } from '@/lib/utils'
 
 export async function scheduleContent(businessId: string, contentId: string, scheduledAt: string, platform: string) {
   const { supabase } = await requireBusinessMembership(businessId)
@@ -48,8 +49,8 @@ export async function scheduleContent(businessId: string, contentId: string, sch
     revalidatePath(`/dashboard/${businessId}/calendar`)
     revalidatePath(`/dashboard/${businessId}/contents`)
     return { success: true }
-  } catch (error: any) {
-    throw new Error(error.message)
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error))
   }
 }
 
@@ -85,7 +86,7 @@ export async function unscheduleContent(businessId: string, contentId: string) {
     revalidatePath(`/dashboard/${businessId}/calendar`)
     revalidatePath(`/dashboard/${businessId}/contents`)
     return { success: true }
-  } catch (error: any) {
-    throw new Error(error.message)
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error))
   }
 }

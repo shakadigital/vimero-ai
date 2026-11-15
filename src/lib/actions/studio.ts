@@ -6,6 +6,7 @@ import { REQUIRED_VIDEO_VISUAL_DIRECTIVE, runCreativeDirector, runVideoDirector,
 import { generateImageCloudflare } from '@/lib/ai/image-router'
 import { randomUUID } from 'node:crypto'
 import { requireBusinessMembership, assertResourceInBusiness, assertText } from '@/lib/auth/business-access'
+import { getErrorMessage } from '@/lib/utils'
 
 export async function generateCreativeImage(businessId: string, contentId: string | null, brief: string) {
   const { supabase } = await requireBusinessMembership(businessId)
@@ -62,9 +63,9 @@ export async function generateCreativeImage(businessId: string, contentId: strin
     revalidatePath(`/dashboard/${businessId}/studio`)
     return { success: true, imageUrl: mediaUrl, prompt: directorOutput.image_prompt }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('generateCreativeImage Error:', error)
-    throw new Error(error.message)
+    throw new Error(getErrorMessage(error))
   }
 }
 
@@ -95,9 +96,9 @@ export async function generateVideoPromptReview(businessId: string, contentId: s
         : `${shot.catatan_tambahan}; wajibkan ${REQUIRED_VIDEO_VISUAL_DIRECTIVE}`,
     }))
     return { success: true, shots: normalizedShots }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('generateVideoPromptReview Error:', error)
-    throw new Error(error.message || 'Gagal membuat draft prompt video')
+    throw new Error(getErrorMessage(error, 'Gagal membuat draft prompt video'))
   }
 }
 
@@ -146,7 +147,7 @@ export async function deleteCreativeImage(businessId: string, imageId: string, _
 
     revalidatePath(`/dashboard/${businessId}/studio`)
     return { success: true }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('deleteCreativeImage Error:', error)
     throw new Error('Asset gagal dihapus.')
   }
@@ -186,7 +187,7 @@ export async function generateStockVideo(businessId: string, contentId: string |
             const randomIndex = Math.floor(Math.random() * data.videos.length)
             const v = data.videos[randomIndex]
             
-            const hdFile = v.video_files.find((f: any) => f.quality === 'hd') || v.video_files[0]
+            const hdFile = v.video_files.find((f: { quality?: string; link?: string }) => f.quality === 'hd') || v.video_files[0]
             if (hdFile) videoUrls.push(hdFile.link)
           }
         } else {

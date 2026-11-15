@@ -5,8 +5,18 @@ import { Button } from '@/components/ui/button'
 import { deleteContent, scheduleContent, unscheduleContent } from '@/lib/actions/content'
 import { toast } from 'sonner'
 import { Calendar, Clock, Loader2, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { getErrorMessage } from '@/lib/utils'
 
-export function CalendarCard({ businessId, content, isScheduled = false }: { businessId: string, content: any, isScheduled?: boolean }) {
+interface CalendarContentItem {
+  id: string
+  title: string
+  platform?: string | null
+  scheduled_at?: string | null
+  hook?: string | null
+  body?: string | null
+}
+
+export function CalendarCard({ businessId, content, isScheduled = false }: { businessId: string, content: CalendarContentItem, isScheduled?: boolean }) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [platform, setPlatform] = useState(content.platform || 'instagram')
   const [scheduledAt, setScheduledAt] = useState(content.scheduled_at ? new Date(content.scheduled_at).toISOString().slice(0, 16) : '')
@@ -24,8 +34,8 @@ export function CalendarCard({ businessId, content, isScheduled = false }: { bus
       const utcDate = new Date(scheduledAt).toISOString()
       await scheduleContent(businessId, content.id, utcDate, platform)
       toast.success('Konten berhasil dijadwalkan!')
-    } catch (error: any) {
-      toast.error('Gagal menjadwalkan: ' + error.message)
+    } catch (error: unknown) {
+      toast.error('Gagal menjadwalkan: ' + getErrorMessage(error))
     } finally {
       setIsLoading(false)
     }
@@ -36,8 +46,8 @@ export function CalendarCard({ businessId, content, isScheduled = false }: { bus
     try {
       await unscheduleContent(businessId, content.id)
       toast.success('Jadwal dibatalkan, dikembalikan ke antrean.')
-    } catch (error: any) {
-      toast.error('Gagal membatalkan jadwal: ' + error.message)
+    } catch (error: unknown) {
+      toast.error('Gagal membatalkan jadwal: ' + getErrorMessage(error))
     } finally {
       setIsLoading(false)
     }
@@ -50,8 +60,8 @@ export function CalendarCard({ businessId, content, isScheduled = false }: { bus
     try {
       await deleteContent(businessId, content.id)
       toast.success('Naskah berhasil dihapus dari antrean.')
-    } catch (error: any) {
-      toast.error('Gagal menghapus naskah: ' + error.message)
+    } catch (error: unknown) {
+      toast.error('Gagal menghapus naskah: ' + getErrorMessage(error))
     } finally {
       setIsLoading(false)
     }

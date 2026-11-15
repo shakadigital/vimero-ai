@@ -7,20 +7,47 @@ import { VideoPlayer } from '@/components/video/video-player'
 import { Headphones, Video } from 'lucide-react'
 import { VideoPromptReview } from '@/components/video/video-prompt-review'
 
-export function VideoStudioClient({ businessId, contents, mediaAssets, generationHistory = [] }: any) {
+interface VideoContentItem {
+  id: string
+  title: string
+  hook?: string | null
+  body?: string | null
+  cta?: string | null
+  audio_url?: string | null
+  subtitle_data?: unknown[] | null
+}
+
+interface MediaAssetItem {
+  file_url: string
+  type?: string
+}
+
+interface GenerationHistoryItem {
+  content_id?: string | null
+  image_url?: string | null
+}
+
+interface VideoStudioClientProps {
+  businessId: string
+  contents: VideoContentItem[]
+  mediaAssets: MediaAssetItem[]
+  generationHistory?: GenerationHistoryItem[]
+}
+
+export function VideoStudioClient({ businessId, contents, mediaAssets, generationHistory = [] }: VideoStudioClientProps) {
   const searchParams = useSearchParams()
   const [activeContentId, setActiveContentId] = useState<string>('')
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
-  const [subtitleData, setSubtitleData] = useState<any>(null)
+  const [subtitleData, setSubtitleData] = useState<unknown[] | null>(null)
   const [videoPrompt, setVideoPrompt] = useState<string | null>(null)
 
-  const handleAudioGenerated = (url: string, subtitles: any) => {
+  const handleAudioGenerated = (url: string, subtitles: unknown[] | null) => {
     setAudioUrl(url)
     setSubtitleData(subtitles)
     setVideoPrompt(null)
   }
 
-  const handleSelectContent = (id: string, url: string | null, subtitles: any) => {
+  const handleSelectContent = (id: string, url: string | null, subtitles: unknown[] | null) => {
     setActiveContentId(id)
     setAudioUrl(url)
     setSubtitleData(subtitles)
@@ -31,26 +58,26 @@ export function VideoStudioClient({ businessId, contents, mediaAssets, generatio
     const requestedContentId = searchParams.get('contentId')
     if (!requestedContentId || activeContentId || contents.length === 0) return
 
-    const requestedContent = contents.find((content: any) => content.id === requestedContentId)
+    const requestedContent = contents.find((content) => content.id === requestedContentId)
     if (requestedContent) {
       startTransition(() => {
         handleSelectContent(
           requestedContent.id,
           requestedContent.audio_url || null,
-          requestedContent.subtitle_data
+          requestedContent.subtitle_data ?? null
         )
       })
     }
   }, [searchParams, contents, activeContentId])
 
-  const activeContent = contents.find((c: any) => c.id === activeContentId)
+  const activeContent = contents.find((c) => c.id === activeContentId)
   
   // Ambil gambar spesifik untuk naskah ini (jika sudah di-generate)
-  const contentImages = generationHistory.filter((h: any) => h.content_id === activeContentId && h.image_url)
+  const contentImages = generationHistory.filter((h) => h.content_id === activeContentId && h.image_url)
   
   // Jika ada gambar spesifik, gunakan. Jika tidak, gunakan mediaAssets global
   const videoMediaAssets = contentImages.length > 0 
-    ? contentImages.map((h: any) => ({ file_url: h.image_url }))
+    ? contentImages.map((h) => ({ file_url: h.image_url as string }))
     : mediaAssets
 
   return (

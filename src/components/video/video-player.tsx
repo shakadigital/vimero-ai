@@ -11,13 +11,27 @@ import { generateAudioAction } from '@/lib/actions/video'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { Progress } from '@/components/ui/progress'
+import { getErrorMessage } from '@/lib/utils'
+
+interface VideoMediaAsset {
+  file_url: string
+  type?: string
+}
+
+interface VideoContent {
+  id: string
+  title: string
+  hook?: string | null
+  body?: string | null
+  cta?: string | null
+}
 
 interface VideoPlayerProps {
   businessId?: string
   audioUrl?: string | null
-  subtitleData?: any
-  mediaAssets?: any[]
-  content?: any
+  subtitleData?: unknown[] | null
+  mediaAssets?: VideoMediaAsset[]
+  content?: VideoContent | null
   videoPrompt?: string | null
 }
 
@@ -72,7 +86,10 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
 
   // Jika ada data subtitle, hitung durasi dari kata terakhir (Edge TTS format)
   const lastSubtitle = currentSubtitleData && currentSubtitleData.length > 0 ? currentSubtitleData[currentSubtitleData.length - 1] : null;
-  const audioDurationMs = lastSubtitle ? (lastSubtitle.offset + lastSubtitle.duration) / 10000 : null;
+  const audioDurationMs =
+    lastSubtitle && typeof lastSubtitle === 'object' && 'offset' in lastSubtitle && 'duration' in lastSubtitle
+      ? (Number(lastSubtitle.offset) + Number(lastSubtitle.duration)) / 10000
+      : null;
   
   // Jika tidak ada audio, beri durasi default 300 frame (10 detik)
   // Berikan padding 1 detik (30 frame) setelah kata terakhir agar video tidak langsung terpotong
@@ -113,10 +130,10 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
         setIsRendering(false)
         toast.error("Gagal memulai render: " + res?.error)
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error)
       setIsRendering(false)
-      toast.error("Terjadi kesalahan: " + error.message)
+      toast.error("Terjadi kesalahan: " + getErrorMessage(error))
     }
   }
 
@@ -182,9 +199,9 @@ export function VideoPlayer({ businessId, audioUrl, subtitleData, mediaAssets, c
 
       setActiveRenderId(renderResult.renderId)
       toast.success('Video sedang dibuat. Progres akan diperbarui otomatis.')
-    } catch (error: any) {
+    } catch (error: unknown) {
       setIsRendering(false)
-      toast.error(error.message || 'Gagal membuat video otomatis')
+      toast.error(getErrorMessage(error, 'Gagal membuat video otomatis'))
     } finally {
       setIsAutoGenerating(false)
     }

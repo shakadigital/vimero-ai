@@ -6,16 +6,27 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent } from '@/components/ui/card'
-import { Mic, Loader2, Play, CheckCircle2 } from 'lucide-react'
+import { Mic, Loader2, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { getErrorMessage } from '@/lib/utils'
+
+interface AudioContentItem {
+  id: string
+  title: string
+  hook?: string | null
+  body?: string | null
+  cta?: string | null
+  audio_url?: string | null
+  subtitle_data?: unknown[] | null
+}
 
 interface AudioGeneratorProps {
   businessId: string
-  contents: any[]
+  contents: AudioContentItem[]
   selectedContent: string
   audioUrl: string | null
-  onSelectContent: (id: string, url: string | null, subtitles: any) => void
-  onAudioGenerated: (url: string, subtitles: any) => void
+  onSelectContent: (id: string, url: string | null, subtitles: unknown[] | null) => void
+  onAudioGenerated: (url: string, subtitles: unknown[] | null) => void
 }
 
 export function AudioGenerator({ businessId, contents, selectedContent, audioUrl, onSelectContent, onAudioGenerated }: AudioGeneratorProps) {
@@ -39,12 +50,12 @@ export function AudioGenerator({ businessId, contents, selectedContent, audioUrl
       const res = await generateAudioAction(businessId, activeContent.id, textToSpeech, voicePersona)
       if (res.success) {
         toast.success("Voiceover berhasil dibuat!")
-        onAudioGenerated(res.audioUrl || '', res.subtitles)
+        onAudioGenerated(res.audioUrl || '', res.subtitles ?? null)
       } else {
         throw new Error(res.error)
       }
-    } catch (err: any) {
-      toast.error(err.message || "Gagal membuat audio")
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Gagal membuat audio"))
     } finally {
       setIsLoading(false)
     }
@@ -58,7 +69,7 @@ export function AudioGenerator({ businessId, contents, selectedContent, audioUrl
           <Select value={selectedContent} onValueChange={(val: string | null) => {
             if (!val) return;
             const c = contents.find(x => x.id === val)
-            onSelectContent(val, c?.audio_url || null, c?.subtitle_data)
+            onSelectContent(val, c?.audio_url || null, c?.subtitle_data ?? null)
           }}>
             <SelectTrigger>
               <SelectValue placeholder="Pilih naskah yang siap di-generate..." />

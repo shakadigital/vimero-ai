@@ -3,12 +3,27 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { reviseContentWithAI, saveManualEdit, deleteContent, scheduleContent } from '@/lib/actions/content'
-import { Loader2, Wand2, Edit3, Save, X, AlertTriangle, Trash2, RefreshCw, CheckCircle2, Calendar, Video } from 'lucide-react'
+import { Loader2, Wand2, Edit3, Save, X, AlertTriangle, RefreshCw, CheckCircle2, Calendar, Video, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { getErrorMessage } from '@/lib/utils'
+import { lintCaption } from '@/lib/ai/quality/caption-linter'
+
+interface ContentItem {
+  id: string
+  title: string
+  status: string
+  hook?: string | null
+  body?: string | null
+  cta?: string | null
+  hashtags?: string[] | null
+  ai_score?: number | null
+  ai_feedback?: string | null
+  ai_claim_warnings?: string[] | null
+}
 
 // Fungsi untuk menyorot teks bermasalah berdasarkan kritik AI
-function highlightProblematicText(text: string, feedback: string | null, warnings: string[] | null) {
+function highlightProblematicText(text: string, feedback?: string | null, warnings?: string[] | null) {
   if (!text || (!feedback && (!warnings || warnings.length === 0))) return text;
 
   const quotes = new Set<string>();
@@ -32,12 +47,13 @@ function highlightProblematicText(text: string, feedback: string | null, warning
   );
 }
 
-export function ContentCard({ businessId, content }: { businessId: string, content: any }) {
+export function ContentCard({ businessId, content }: { businessId: string, content: ContentItem }) {
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
   const [isRevising, setIsRevising] = useState(false)
   const [isDeletingRegen, setIsDeletingRegen] = useState(false)
   const [isScheduling, setIsScheduling] = useState(false)
+  const [showLinterPreview, setShowLinterPreview] = useState(false)
 
   // Scheduling state
   const [showScheduleForm, setShowScheduleForm] = useState(false)
@@ -55,8 +71,8 @@ export function ContentCard({ businessId, content }: { businessId: string, conte
     try {
       await reviseContentWithAI(businessId, content.id)
       toast.success('Naskah berhasil direvisi oleh AI!')
-    } catch (err: any) {
-      toast.error(err.message)
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err))
     } finally {
       setIsRevising(false)
     }
@@ -68,8 +84,8 @@ export function ContentCard({ businessId, content }: { businessId: string, conte
     try {
       await deleteContent(businessId, content.id)
       toast.success('Konten dihapus. Jika ini berasal dari Ide, ide tersebut telah kembali ke antrian.')
-    } catch (err: any) {
-      toast.error(err.message)
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err))
       setIsDeletingRegen(false)
     }
   }
@@ -80,8 +96,8 @@ export function ContentCard({ businessId, content }: { businessId: string, conte
       await saveManualEdit(businessId, content.id, hook, body, cta, htArray)
       toast.success('Naskah berhasil diperbarui secara manual!')
       setIsEditing(false)
-    } catch (err: any) {
-      toast.error(err.message)
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err))
     }
   }
 
@@ -96,15 +112,27 @@ export function ContentCard({ businessId, content }: { businessId: string, conte
       await scheduleContent(businessId, content.id, isoDate, platform)
       toast.success("Konten berhasil dijadwalkan!")
       setShowScheduleForm(false)
-    } catch (err: any) {
-      toast.error(err.message)
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err))
     } finally {
       setIsScheduling(false)
     }
   }
 
-  const needsRevision = content.ai_score !== null && content.ai_score !== undefined
-  const canAutoRevise = needsRevision && content.ai_score >= 85
+  const aiScore = content.ai_score
+  const needsRevision = aiScore !== null && aiScore !== undefined
+
+  const fullCaptionText = [
+    content.hook,
+    content.body,
+    content.cta,
+    content.hashtags?.map((h) => (h.startsWith('#') ? h : `#${h}`)).join(' '),
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+  const captionLint = fullCaptionText
+    ? lintCaption(fullCaptionText, { truncateAt: 125, job: 'B', maxHashtags: 5 })
+    : null
 
   return (
     <div className="border p-5 rounded-xl bg-card shadow-sm space-y-4">
@@ -131,9 +159,9 @@ export function ContentCard({ businessId, content }: { businessId: string, conte
               <h4 className="font-bold text-base">Referensi Kritik & Naskah Asli</h4>
             </div>
             
-            {needsRevision && (
-              <div className={`p-3 rounded-lg text-xs border ${content.ai_score >= 85 ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300' : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-950/30 dark:text-red-300'}`}>
-                <strong>Saran Perbaikan ({content.ai_score}/100):</strong>
+            {aiScore !== null && aiScore !== undefined && (
+              <div className={`p-3 rounded-lg text-xs border ${aiScore >= 85 ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300' : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-950/30 dark:text-red-300'}`}>
+                <strong>Saran Perbaikan ({aiScore}/100):</strong>
                 <p className="mt-1 opacity-90">{content.ai_feedback}</p>
               </div>
             )}
@@ -226,22 +254,22 @@ export function ContentCard({ businessId, content }: { businessId: string, conte
       </div>
 
       {/* Hasil Evaluasi AI & Aksi */}
-      {needsRevision && (
+      {aiScore !== null && aiScore !== undefined && (
         <div className={`p-4 rounded-lg border ${
-          content.ai_score >= 75
+          aiScore >= 75
             ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30'
             : 'bg-red-50 border-red-200 dark:bg-red-950/30'
         }`}>
           <div className="flex items-center gap-3 mb-2">
-            {content.ai_score >= 75
+            {aiScore >= 75
               ? <CheckCircle2 className="w-5 h-5 text-emerald-600" />
               : <AlertTriangle className="w-5 h-5 text-red-600" />
             }
-            <div className={`text-2xl font-black ${content.ai_score >= 75 ? 'text-emerald-600' : 'text-red-600'}`}>
-              {content.ai_score}/100
+            <div className={`text-2xl font-black ${aiScore >= 75 ? 'text-emerald-600' : 'text-red-600'}`}>
+              {aiScore}/100
             </div>
             <div className="font-semibold">
-              {content.ai_score >= 75 ? '👍 Disetujui' : '⚠️ Perlu Perbaikan'}
+              {aiScore >= 75 ? '👍 Disetujui' : '⚠️ Perlu Perbaikan'}
             </div>
           </div>
 
@@ -255,6 +283,64 @@ export function ContentCard({ businessId, content }: { businessId: string, conte
               <ul className="list-disc pl-4 space-y-1">
                 {content.ai_claim_warnings.map((warn: string, i: number) => <li key={i}>{warn}</li>)}
               </ul>
+            </div>
+          )}
+
+          {captionLint && (
+            <div className="mt-3 border-t border-border/50 pt-3">
+              <button
+                type="button"
+                onClick={() => setShowLinterPreview(!showLinterPreview)}
+                className="flex items-center justify-between w-full text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Eye className="w-3.5 h-3.5" />
+                  Preview Feed IG (125 kar.) &amp; Linter
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded-full font-semibold ${
+                    captionLint.verdict === 'READY'
+                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                      : captionLint.verdict === 'REVIEW'
+                        ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                        : 'bg-red-500/15 text-red-600 dark:text-red-400'
+                  }`}
+                >
+                  {captionLint.verdict} · {captionLint.characters} kar. · {captionLint.hashtags.length} tag
+                </span>
+              </button>
+
+              {showLinterPreview && (
+                <div className="mt-2 space-y-2 text-xs">
+                  <div className="rounded-md bg-background/80 border p-2.5">
+                    <div className="text-[11px] font-semibold text-muted-foreground mb-1">
+                      Terlihat sebelum &ldquo;... more&rdquo; ({Math.min(captionLint.characters, 125)}/125):
+                    </div>
+                    <p className="whitespace-pre-wrap text-foreground">
+                      {captionLint.visible}
+                      {captionLint.truncated && <span className="text-muted-foreground"> ... more</span>}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    {captionLint.checks
+                      .filter((c) => c.status !== 'PASS')
+                      .map((c, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-[11px]">
+                          <span
+                            className={`font-bold shrink-0 ${
+                              c.status === 'FAIL' ? 'text-red-600' : 'text-amber-600'
+                            }`}
+                          >
+                            [{c.status}]
+                          </span>
+                          <span className="text-muted-foreground">
+                            <strong>{c.check}:</strong> {c.detail}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -21,6 +21,25 @@ export async function updateBrandKit(formData: FormData) {
   const forbidden_phrases = parseArray(formData.get('forbidden_phrases') as string)
   const content_boundaries = parseArray(formData.get('content_boundaries') as string)
 
+  // Parse newline or semicolon separated arrays for longer sentences
+  const parseLines = (str: string) =>
+    str ? str.split(/\r?\n/).map(s => s.trim()).filter(Boolean) : []
+
+  const proof_points = parseLines(formData.get('proof_points') as string)
+  const brand_positions = parseLines(formData.get('brand_positions') as string)
+  const default_search_terms = parseArray(formData.get('default_search_terms') as string).slice(0, 4)
+  const default_hashtags = parseArray(formData.get('default_hashtags') as string).map((tag) =>
+    '#' + tag.replace(/^#+/, '').replace(/[^A-Za-z0-9_]/g, '')
+  ).filter((tag) => tag.length > 1)
+
+  const rawWpm = parseInt((formData.get('speaking_wpm') as string) || '165', 10)
+  const speaking_wpm = Number.isFinite(rawWpm) ? Math.max(100, Math.min(250, rawWpm)) : 165
+  const pronouns = ((formData.get('pronouns') as string) || '').trim() || null
+  const cta_keyword = ((formData.get('cta_keyword') as string) || '')
+    .replace(/[^A-Za-z0-9]/g, '')
+    .toUpperCase() || null
+  const cta_delivers = ((formData.get('cta_delivers') as string) || '').trim() || null
+
   if (!business_id) throw new Error('Business ID missing')
 
   const { error } = await supabase
@@ -36,7 +55,15 @@ export async function updateBrandKit(formData: FormData) {
       preferred_words,
       forbidden_words,
       forbidden_phrases,
-      content_boundaries
+      content_boundaries,
+      proof_points,
+      brand_positions,
+      default_search_terms,
+      default_hashtags,
+      speaking_wpm,
+      pronouns,
+      cta_keyword,
+      cta_delivers,
     }, { onConflict: 'business_id' })
 
   if (error) {

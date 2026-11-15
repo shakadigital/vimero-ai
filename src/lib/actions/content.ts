@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { runCopywriter } from '@/lib/ai/agents/copywriter'
 import { runContentCritic } from '@/lib/ai/agents/critic'
 import { requireBusinessMembership, assertResourceInBusiness, assertText } from '@/lib/auth/business-access'
+import { getErrorMessage } from '@/lib/utils'
 
 export async function createPillar(businessId: string, name: string, description: string) {
   const { supabase } = await requireBusinessMembership(businessId)
@@ -137,8 +138,8 @@ export async function generateContentBody(businessId: string, contentId: string,
       
     revalidatePath(`/dashboard/${businessId}/contents`)
     return { success: true }
-  } catch (error: any) {
-    throw new Error(error.message)
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error))
   }
 }
 
@@ -170,8 +171,8 @@ export async function evaluateContent(businessId: string, contentId: string) {
       
     revalidatePath(`/dashboard/${businessId}/contents`)
     return { success: true }
-  } catch (error: any) {
-    throw new Error(error.message)
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error))
   }
 }
 
@@ -261,8 +262,8 @@ export async function autoGenerateFromIdeaBank(businessId: string, pillarId: str
     revalidatePath(`/dashboard/${businessId}/contents/idea-bank`)
     
     return { success: true, contentId: content.id }
-  } catch (error: any) {
-    throw new Error(error.message)
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error))
   }
 }
 
@@ -316,8 +317,8 @@ Tulis ulang naskah konten tersebut. Pastikan Anda memperbaiki kelemahan sesuai K
 
     revalidatePath(`/dashboard/${businessId}/contents`)
     return { success: true }
-  } catch (error: any) {
-    throw new Error(error.message)
+  } catch (error: unknown) {
+    throw new Error(getErrorMessage(error))
   }
 }
 
