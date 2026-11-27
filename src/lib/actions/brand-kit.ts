@@ -1,12 +1,12 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { requireBusinessMembership } from '@/lib/auth/business-access'
 import { revalidatePath } from 'next/cache'
 
 export async function updateBrandKit(formData: FormData) {
-  const supabase = await createClient()
-  
   const business_id = formData.get('business_id') as string
+  const { supabase } = await requireBusinessMembership(business_id, ['owner', 'admin'])
+
   const primary_color = formData.get('primary_color') as string
   const tone_of_voice = formData.get('tone_of_voice') as string
   const brand_personality = formData.get('brand_personality') as string

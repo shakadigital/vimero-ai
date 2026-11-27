@@ -1,12 +1,12 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { requireBusinessMembership } from '@/lib/auth/business-access'
 import { revalidatePath } from 'next/cache'
 import { publishToBuffer } from '@/lib/integrations/buffer'
 import { getErrorMessage } from '@/lib/utils'
 
 export async function publishContentNow(businessId: string, contentId: string) {
-  const supabase = await createClient()
+  const { supabase } = await requireBusinessMembership(businessId)
 
   try {
     // 1. Ambil data konten

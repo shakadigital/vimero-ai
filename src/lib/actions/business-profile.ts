@@ -1,12 +1,12 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { requireBusinessMembership } from '@/lib/auth/business-access'
 import { revalidatePath } from 'next/cache'
 
 export async function updateBusinessProfile(formData: FormData) {
-  const supabase = await createClient()
-  
   const business_id = formData.get('business_id') as string
+  const { supabase } = await requireBusinessMembership(business_id, ['owner', 'admin'])
+
   const name = formData.get('name') as string
   const industry = formData.get('industry') as string
   const description = formData.get('description') as string

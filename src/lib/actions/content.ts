@@ -388,7 +388,7 @@ export async function unscheduleContent(businessId: string, contentId: string) {
 }
 
 export async function deleteContentIdea(businessId: string, ideaId: string) {
-  const supabase = await createClient()
+  const { supabase } = await requireBusinessMembership(businessId)
   const { error } = await supabase
     .from('content_ideas')
     .delete()
@@ -400,7 +400,7 @@ export async function deleteContentIdea(businessId: string, ideaId: string) {
 }
 
 export async function deleteAllPendingIdeas(businessId: string) {
-  const supabase = await createClient()
+  const { supabase } = await requireBusinessMembership(businessId, ['owner', 'admin'])
   const { error } = await supabase
     .from('content_ideas')
     .delete()

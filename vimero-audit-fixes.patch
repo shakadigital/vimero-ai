@@ -1,0 +1,346 @@
+diff --git a/src/app/api/test-ai/route.ts b/src/app/api/test-ai/route.ts
+deleted file mode 100644
+index ace7053..0000000
+--- a/src/app/api/test-ai/route.ts
++++ /dev/null
+@@ -1,38 +0,0 @@
+-import { NextResponse } from 'next/server'
+-import { runBusinessStrategist } from '@/lib/ai/agents/strategist'
+-import { runCopywriter } from '@/lib/ai/agents/copywriter'
+-
+-export async function GET(request: Request) {
+-  // This diagnostic endpoint must never be available in production because it
+-  // spends provider quota and accepts arbitrary prompt input.
+-  if (process.env.NODE_ENV === 'production') {
+-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+-  }
+-
+-  const { searchParams } = new URL(request.url)
+-  const agent = searchParams.get('agent') || 'strategist'
+-  const context = searchParams.get('context') || "Kami adalah kedai kopi lokal bernama 'Kopi Senja' yang menjual kopi robusta organik. Kami butuh strategi meningkatkan penjualan di jam sibuk pagi hari."
+-
+-  if (agent !== 'strategist' && agent !== 'copywriter') {
+-    return NextResponse.json({ success: false, error: 'Agent tidak valid' }, { status: 400 })
+-  }
+-
+-  if (context.length > 4000) {
+-    return NextResponse.json({ success: false, error: 'Context terlalu panjang' }, { status: 413 })
+-  }
+-
+-  const businessId = "123e4567-e89b-12d3-a456-426614174000"
+-
+-  try {
+-    if (agent === 'copywriter') {
+-      const result = await runCopywriter(businessId, context, "Santai dan ramah")
+-      return NextResponse.json({ success: true, agent: 'COPYWRITER', data: result })
+-    }
+-
+-    const result = await runBusinessStrategist(businessId, context)
+-    return NextResponse.json({ success: true, agent: 'BUSINESS_STRATEGIST', data: result })
+-  } catch (error) {
+-    console.error('AI Test Route Error:', error)
+-    return NextResponse.json({ success: false, error: 'AI test gagal diproses' }, { status: 500 })
+-  }
+-}
+diff --git a/src/lib/actions/brand-kit.ts b/src/lib/actions/brand-kit.ts
+index 14b1702..9f8d75d 100644
+--- a/src/lib/actions/brand-kit.ts
++++ b/src/lib/actions/brand-kit.ts
+@@ -1,12 +1,12 @@
+ 'use server'
+ 
+-import { createClient } from '@/lib/supabase/server'
++import { requireBusinessMembership } from '@/lib/auth/business-access'
+ import { revalidatePath } from 'next/cache'
+ 
+ export async function updateBrandKit(formData: FormData) {
+-  const supabase = await createClient()
+-  
+   const business_id = formData.get('business_id') as string
++  const { supabase } = await requireBusinessMembership(business_id, ['owner', 'admin'])
++
+   const primary_color = formData.get('primary_color') as string
+   const tone_of_voice = formData.get('tone_of_voice') as string
+   const brand_personality = formData.get('brand_personality') as string
+diff --git a/src/lib/actions/business-profile.ts b/src/lib/actions/business-profile.ts
+index dd98d0d..314ce40 100644
+--- a/src/lib/actions/business-profile.ts
++++ b/src/lib/actions/business-profile.ts
+@@ -1,12 +1,12 @@
+ 'use server'
+ 
+-import { createClient } from '@/lib/supabase/server'
++import { requireBusinessMembership } from '@/lib/auth/business-access'
+ import { revalidatePath } from 'next/cache'
+ 
+ export async function updateBusinessProfile(formData: FormData) {
+-  const supabase = await createClient()
+-  
+   const business_id = formData.get('business_id') as string
++  const { supabase } = await requireBusinessMembership(business_id, ['owner', 'admin'])
++
+   const name = formData.get('name') as string
+   const industry = formData.get('industry') as string
+   const description = formData.get('description') as string
+diff --git a/src/lib/actions/content.ts b/src/lib/actions/content.ts
+index 2d8720d..03b22cb 100644
+--- a/src/lib/actions/content.ts
++++ b/src/lib/actions/content.ts
+@@ -388,7 +388,7 @@ export async function unscheduleContent(businessId: string, contentId: string) {
+ }
+ 
+ export async function deleteContentIdea(businessId: string, ideaId: string) {
+-  const supabase = await createClient()
++  const { supabase } = await requireBusinessMembership(businessId)
+   const { error } = await supabase
+     .from('content_ideas')
+     .delete()
+@@ -400,7 +400,7 @@ export async function deleteContentIdea(businessId: string, ideaId: string) {
+ }
+ 
+ export async function deleteAllPendingIdeas(businessId: string) {
+-  const supabase = await createClient()
++  const { supabase } = await requireBusinessMembership(businessId, ['owner', 'admin'])
+   const { error } = await supabase
+     .from('content_ideas')
+     .delete()
+diff --git a/src/lib/actions/publish.ts b/src/lib/actions/publish.ts
+index ec92527..67da0dc 100644
+--- a/src/lib/actions/publish.ts
++++ b/src/lib/actions/publish.ts
+@@ -1,12 +1,12 @@
+ 'use server'
+ 
+-import { createClient } from '@/lib/supabase/server'
++import { requireBusinessMembership } from '@/lib/auth/business-access'
+ import { revalidatePath } from 'next/cache'
+ import { publishToBuffer } from '@/lib/integrations/buffer'
+ import { getErrorMessage } from '@/lib/utils'
+ 
+ export async function publishContentNow(businessId: string, contentId: string) {
+-  const supabase = await createClient()
++  const { supabase } = await requireBusinessMembership(businessId)
+ 
+   try {
+     // 1. Ambil data konten
+diff --git a/src/lib/actions/research.ts b/src/lib/actions/research.ts
+index 3b19e6c..da6eef0 100644
+--- a/src/lib/actions/research.ts
++++ b/src/lib/actions/research.ts
+@@ -1,18 +1,21 @@
+ 'use server'
+ 
+-import { createClient } from '@/lib/supabase/server'
++import { requireBusinessMembership, assertText } from '@/lib/auth/business-access'
+ import { runResearcher } from '@/lib/ai/agents/researcher'
+ import { runCopywriter } from '@/lib/ai/agents/copywriter'
+ import { runContentCritic } from '@/lib/ai/agents/critic'
+ import { revalidatePath } from 'next/cache'
+ import { getErrorMessage } from '@/lib/utils'
+ 
++const RESEARCH_TYPES = ['trend', 'competitor', 'audience', 'keyword'] as const
++
+ export async function generateResearch(
+   businessId: string,
+-  researchType: 'trend' | 'competitor' | 'audience' | 'keyword',
++  researchType: (typeof RESEARCH_TYPES)[number],
+   _formData?: FormData
+ ) {
+-  const supabase = await createClient()
++  const { supabase } = await requireBusinessMembership(businessId)
++  if (!RESEARCH_TYPES.includes(researchType)) throw new Error('Tipe riset tidak valid.')
+   try {
+     const result = await runResearcher(businessId, researchType)
+     const insertData = result.items.map(item => ({
+@@ -55,7 +58,9 @@ export async function generateContentFromResearch(
+   researchTitle: string,
+   researchContent: string
+ ) {
+-  const supabase = await createClient()
++  const { supabase } = await requireBusinessMembership(businessId)
++  assertText(researchTitle, 'Judul riset', 300)
++  assertText(researchContent, 'Konteks riset', 8_000)
+   const results: { label: string; score: number; status: string }[] = []
+ 
+   for (const variation of CONTENT_VARIATIONS) {
+@@ -80,7 +85,7 @@ Angle konten: ${variation.tone}
+ 
+       // 3. Simpan langsung ke contents (skip draft)
+       const title = `[${variation.label}] ${researchTitle}`
+-      await supabase.from('contents').insert({
++      const { error: insertError } = await supabase.from('contents').insert({
+         business_id: businessId,
+         title,
+         hook: aiResult.hook,
+@@ -92,6 +97,7 @@ Angle konten: ${variation.tone}
+         ai_feedback: review.feedback,
+         ai_claim_warnings: review.claim_warnings,
+       })
++      if (insertError) throw new Error(insertError.message)
+ 
+       results.push({ label: variation.label, score: review.score, status: finalStatus })
+     } catch (err: unknown) {
+@@ -109,7 +115,7 @@ Angle konten: ${variation.tone}
+ }
+ 
+ export async function deleteResearchItem(businessId: string, itemId: string) {
+-  const supabase = await createClient()
++  const { supabase } = await requireBusinessMembership(businessId)
+   const { error } = await supabase
+     .from('research_items')
+     .delete()
+diff --git a/src/lib/ai/registry.ts b/src/lib/ai/registry.ts
+index 50487c6..06ccc93 100644
+--- a/src/lib/ai/registry.ts
++++ b/src/lib/ai/registry.ts
+@@ -4,6 +4,9 @@ import { z } from 'zod'
+ 
+ export type AgentType = 'BUSINESS_STRATEGIST' | 'COPYWRITER'
+ 
++// Satu alur konten bisa memanggil beberapa agent, jadi batas dibuat longgar secara default.
++const DEFAULT_AI_DAILY_LIMIT = 300
++
+ export async function callAgent<T>({
+   agentType,
+   businessId,
+@@ -19,12 +22,28 @@ export async function callAgent<T>({
+   schema: z.ZodSchema<T>
+   options?: RouterOptions
+ }) {
++  const supabase = await createClient()
++
++  // Kuota harian per bisnis (dihitung dari ai_usage). Versi sederhana: cek-lalu-tulis,
++  // cukup untuk pemakaian pribadi. Atur batas lewat env AI_DAILY_LIMIT.
++  const dailyLimit = Number(process.env.AI_DAILY_LIMIT ?? DEFAULT_AI_DAILY_LIMIT)
++  const since = new Date()
++  since.setUTCHours(0, 0, 0, 0)
++  const { count, error: countError } = await supabase
++    .from('ai_usage')
++    .select('id', { count: 'exact', head: true })
++    .eq('business_id', businessId)
++    .gte('created_at', since.toISOString())
++  if (countError) console.error('Failed to read AI usage quota:', countError)
++  if ((count ?? 0) >= dailyLimit) {
++    throw new Error('Batas penggunaan AI harian tercapai. Coba lagi besok.')
++  }
++
+   // Panggil router untuk eksekusi multi-provider dan validasi Zod
+   const { data, usage } = await generateStructuredData({ system, prompt, schema, options })
+-  
+-  // Log penggunaan secara asinkron agar tidak memblokir antarmuka pengguna (non-blocking)
+-  const supabase = await createClient()
+-  supabase.from('ai_usage').insert({
++
++  // Di-await: pada serverless, promise yang belum selesai bisa terputus saat respons dikirim.
++  const { error: usageError } = await supabase.from('ai_usage').insert({
+     business_id: businessId,
+     provider: usage.provider,
+     model: usage.model,
+@@ -32,11 +51,8 @@ export async function callAgent<T>({
+     prompt_tokens: usage.promptTokens,
+     completion_tokens: usage.completionTokens,
+     total_tokens: usage.totalTokens,
+-  }).then(({ error }) => {
+-    if (error) {
+-      console.error('Failed to log AI usage to Supabase:', error)
+-    }
+   })
++  if (usageError) console.error('Failed to log AI usage to Supabase:', usageError)
+ 
+   return data
+ }
+diff --git a/src/lib/integrations/buffer.ts b/src/lib/integrations/buffer.ts
+index 1f57e67..7d45e06 100644
+--- a/src/lib/integrations/buffer.ts
++++ b/src/lib/integrations/buffer.ts
+@@ -37,12 +37,20 @@ export async function getBufferProfiles(token: string): Promise<BufferProfile[]>
+   return res.json()
+ }
+ 
++// Mode simulasi hanya untuk development. Di production, token yang hilang harus
++// menjadi kegagalan eksplisit agar konten tidak tercatat "published" padahal tidak terkirim.
++const BUFFER_NOT_CONFIGURED: BufferPublishResult = {
++  success: false,
++  error: 'BUFFER_API_KEY belum dikonfigurasi',
++}
++
+ export async function publishToBuffer(text: string, _platform: string, imageUrl?: string): Promise<BufferPublishResult> {
+   void imageUrl
+   const token = process.env.BUFFER_API_KEY
+-  
+-  // 1. Jika tidak ada token, gunakan mode simulasi yang mulus
++
++  // 1. Jika tidak ada token: gagal di production, simulasi hanya di development
+   if (!token || token === 'your-buffer-key' || token.trim() === '') {
++    if (process.env.NODE_ENV === 'production') return BUFFER_NOT_CONFIGURED
+     console.log(`[SIMULATED DISPATCH] Mempublikasikan konten ke kanal ${_platform}...`)
+     await new Promise(resolve => setTimeout(resolve, 800))
+     return {
+@@ -97,6 +105,7 @@ export async function scheduleToBuffer(text: string, platform: string, scheduled
+   const token = process.env.BUFFER_API_KEY
+   
+   if (!token || token === 'your-buffer-key' || token.trim() === '') {
++    if (process.env.NODE_ENV === 'production') return BUFFER_NOT_CONFIGURED
+     console.log(`[SIMULATED SCHEDULE] Menjadwalkan konten ke kanal ${platform} untuk ${scheduledAt}...`)
+     await new Promise(resolve => setTimeout(resolve, 800))
+     return {
+diff --git a/supabase/migrations/00000000000019_ai_usage_insert.sql b/supabase/migrations/00000000000019_ai_usage_insert.sql
+new file mode 100644
+index 0000000..aefc8b8
+--- /dev/null
++++ b/supabase/migrations/00000000000019_ai_usage_insert.sql
+@@ -0,0 +1,7 @@
++-- Pencatatan ai_usage dilakukan dengan klien sesi pengguna (src/lib/ai/registry.ts).
++-- Sebelumnya tabel ini hanya punya policy SELECT, sehingga setiap INSERT ditolak RLS
++-- dan Cost Controller / kuota harian tidak pernah melihat data.
++-- Policy ini membatasi INSERT ke anggota bisnis yang bersangkutan.
++CREATE POLICY "Members can insert ai usage"
++ON public.ai_usage FOR INSERT
++WITH CHECK (is_business_member(business_id));
+diff --git a/supabase/migrations/00000000000020_function_and_policy_hardening.sql b/supabase/migrations/00000000000020_function_and_policy_hardening.sql
+new file mode 100644
+index 0000000..9f43ab0
+--- /dev/null
++++ b/supabase/migrations/00000000000020_function_and_policy_hardening.sql
+@@ -0,0 +1,41 @@
++-- 1) Fungsi SECURITY DEFINER wajib punya search_path tetap agar tidak bisa dibajak
++--    lewat objek dengan nama sama di schema lain.
++ALTER FUNCTION public.is_business_member(uuid)     SET search_path = pg_catalog, public;
++ALTER FUNCTION public.handle_new_business()        SET search_path = pg_catalog, public;
++ALTER FUNCTION public.log_business_goal_changes()  SET search_path = pg_catalog, public;
++
++-- 2) Policy UPDATE tanpa WITH CHECK memungkinkan baris "dipindahkan" ke business_id lain.
++--    Tambahkan WITH CHECK yang sama dengan USING.
++ALTER POLICY "Members can update business" ON public.businesses
++  USING (is_business_member(id)) WITH CHECK (is_business_member(id));
++
++ALTER POLICY "Members can update brand kit" ON public.brand_kits
++  USING (is_business_member(business_id)) WITH CHECK (is_business_member(business_id));
++
++ALTER POLICY "Members can update products and services" ON public.products_services
++  USING (is_business_member(business_id)) WITH CHECK (is_business_member(business_id));
++
++ALTER POLICY "Members can update goals" ON public.business_goals
++  USING (is_business_member(business_id)) WITH CHECK (is_business_member(business_id));
++
++ALTER POLICY "Members can update contents" ON public.contents
++  USING (is_business_member(business_id)) WITH CHECK (is_business_member(business_id));
++
++ALTER POLICY "Members can update content pillars" ON public.content_pillars
++  USING (is_business_member(business_id)) WITH CHECK (is_business_member(business_id));
++
++ALTER POLICY "Members can update content ideas" ON public.content_ideas
++  USING (is_business_member(business_id)) WITH CHECK (is_business_member(business_id));
++
++ALTER POLICY "Members can update media assets" ON public.media_assets
++  USING (is_business_member(business_id)) WITH CHECK (is_business_member(business_id));
++
++ALTER POLICY "Members can update video audio projects" ON public.video_audio_projects
++  USING (is_business_member(business_id)) WITH CHECK (is_business_member(business_id));
++
++ALTER POLICY "Members can update research_items" ON public.research_items
++  USING (is_business_member(business_id)) WITH CHECK (is_business_member(business_id));
++
++ALTER POLICY "Users can update their business video renders" ON public.video_renders
++  USING (business_id IN (SELECT business_id FROM public.business_members WHERE user_id = auth.uid()))
++  WITH CHECK (business_id IN (SELECT business_id FROM public.business_members WHERE user_id = auth.uid()));

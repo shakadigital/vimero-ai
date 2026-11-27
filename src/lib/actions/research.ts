@@ -1,18 +1,21 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { requireBusinessMembership, assertText } from '@/lib/auth/business-access'
 import { runResearcher } from '@/lib/ai/agents/researcher'
 import { runCopywriter } from '@/lib/ai/agents/copywriter'
 import { runContentCritic } from '@/lib/ai/agents/critic'
 import { revalidatePath } from 'next/cache'
 import { getErrorMessage } from '@/lib/utils'
 
+const RESEARCH_TYPES = ['trend', 'competitor', 'audience', 'keyword'] as const
+
 export async function generateResearch(
   businessId: string,
-  researchType: 'trend' | 'competitor' | 'audience' | 'keyword',
+  researchType: (typeof RESEARCH_TYPES)[number],
   _formData?: FormData
 ) {
-  const supabase = await createClient()
+  const { supabase } = await requireBusinessMembership(businessId)
+  if (!RESEARCH_TYPES.includes(researchType)) throw new Error('Tipe riset tidak valid.')
   try {
     const result = await runResearcher(businessId, researchType)
     const insertData = result.items.map(item => ({
@@ -55,7 +58,9 @@ export async function generateContentFromResearch(
   researchTitle: string,
   researchContent: string
 ) {
-  const supabase = await createClient()
+  const { supabase } = await requireBusinessMembership(businessId)
+  assertText(researchTitle, 'Judul riset', 300)
+  assertText(researchContent, 'Konteks riset', 8_000)
   const results: { label: string; score: number; status: string }[] = []
 
   for (const variation of CONTENT_VARIATIONS) {
@@ -80,7 +85,7 @@ Angle konten: ${variation.tone}
 
       // 3. Simpan langsung ke contents (skip draft)
       const title = `[${variation.label}] ${researchTitle}`
-      await supabase.from('contents').insert({
+      const { error: insertError } = await supabase.from('contents').insert({
         business_id: businessId,
         title,
         hook: aiResult.hook,
@@ -92,6 +97,7 @@ Angle konten: ${variation.tone}
         ai_feedback: review.feedback,
         ai_claim_warnings: review.claim_warnings,
       })
+      if (insertError) throw new Error(insertError.message)
 
       results.push({ label: variation.label, score: review.score, status: finalStatus })
     } catch (err: unknown) {
@@ -109,7 +115,7 @@ Angle konten: ${variation.tone}
 }
 
 export async function deleteResearchItem(businessId: string, itemId: string) {
-  const supabase = await createClient()
+  const { supabase } = await requireBusinessMembership(businessId)
   const { error } = await supabase
     .from('research_items')
     .delete()

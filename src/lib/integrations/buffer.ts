@@ -37,12 +37,20 @@ export async function getBufferProfiles(token: string): Promise<BufferProfile[]>
   return res.json()
 }
 
+// Mode simulasi hanya untuk development. Di production, token yang hilang harus
+// menjadi kegagalan eksplisit agar konten tidak tercatat "published" padahal tidak terkirim.
+const BUFFER_NOT_CONFIGURED: BufferPublishResult = {
+  success: false,
+  error: 'BUFFER_API_KEY belum dikonfigurasi',
+}
+
 export async function publishToBuffer(text: string, _platform: string, imageUrl?: string): Promise<BufferPublishResult> {
   void imageUrl
   const token = process.env.BUFFER_API_KEY
-  
-  // 1. Jika tidak ada token, gunakan mode simulasi yang mulus
+
+  // 1. Jika tidak ada token: gagal di production, simulasi hanya di development
   if (!token || token === 'your-buffer-key' || token.trim() === '') {
+    if (process.env.NODE_ENV === 'production') return BUFFER_NOT_CONFIGURED
     console.log(`[SIMULATED DISPATCH] Mempublikasikan konten ke kanal ${_platform}...`)
     await new Promise(resolve => setTimeout(resolve, 800))
     return {
@@ -97,6 +105,7 @@ export async function scheduleToBuffer(text: string, platform: string, scheduled
   const token = process.env.BUFFER_API_KEY
   
   if (!token || token === 'your-buffer-key' || token.trim() === '') {
+    if (process.env.NODE_ENV === 'production') return BUFFER_NOT_CONFIGURED
     console.log(`[SIMULATED SCHEDULE] Menjadwalkan konten ke kanal ${platform} untuk ${scheduledAt}...`)
     await new Promise(resolve => setTimeout(resolve, 800))
     return {
